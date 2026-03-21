@@ -1039,10 +1039,15 @@ function renderClaudeExport() {
 
 async function copyExport() {
   const text = document.getElementById('claudeExport').textContent;
-  await navigator.clipboard.writeText(text);
-  const btn = event.target;
-  btn.textContent = '✅ Copied!';
-  setTimeout(() => btn.textContent = '📋 Copy to Clipboard', 2000);
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch(e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+  }
+  const btn = document.querySelector('[onclick="copyExport()"]');
+  if (btn) { btn.textContent = '✅ Copied!'; setTimeout(() => btn.textContent = '📋 Copy to Clipboard', 2000); }
 }
 
 // ═══════════════════════════════════════════════════════════
