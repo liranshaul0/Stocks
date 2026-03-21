@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steadfast Lite — Portfolio Tracker</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg-primary: #0a0f1a;
+  --bg-secondary: #111827;
+  --bg-card: #1a2235;
+  --bg-card-hover: #1f2a40;
+  --bg-input: #0d1525;
+  --border: #2a3550;
+  --border-focus: #3b82f6;
+  --text-primary: #e8ecf4;
+  --text-secondary: #8899b4;
+  --text-muted: #5a6a84;
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --green: #22c55e;
+  --green-bg: rgba(34,197,94,0.1);
+  --red: #ef4444;
+  --red-bg: rgba(239,68,68,0.1);
+  --yellow: #f59e0b;
+  --yellow-bg: rgba(245,158,11,0.1);
+  --purple: #a855f7;
+  --sidebar-w: 220px;
+  --header-h: 56px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'IBM Plex Sans', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+/* ═══ SIDEBAR ═══ */
+.sidebar {
+  position: fixed; top: 0; right: 0; width: var(--sidebar-w); height: 100vh;
+  background: var(--bg-secondary); border-left: 1px solid var(--border);
+  display: flex; flex-direction: column; z-index: 100;
+}
+.sidebar-brand {
+  padding: 20px 16px; border-bottom: 1px solid var(--border);
+}
+.sidebar-brand h1 {
+  font-size: 18px; font-weight: 700; color: var(--text-primary);
+  letter-spacing: 2px;
+}
+.sidebar-brand p { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+.sidebar-nav { flex: 1; padding: 12px 8px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+  border-radius: 8px; cursor: pointer; font-size: 14px; color: var(--text-secondary);
+  transition: all 0.2s; margin-bottom: 2px; border: none; background: none;
+  width: 100%; text-align: right; font-family: inherit;
+}
+.nav-item:hover { background: var(--bg-card); color: var(--text-primary); }
+.nav-item.active { background: var(--accent); color: #fff; }
+.nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
+.sidebar-footer {
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--text-muted); text-align: center;
+}
+
+/* ═══ MAIN CONTENT ═══ */
+.main { margin-right: var(--sidebar-w); padding: 24px 32px; min-height: 100vh; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ═══ CARDS ═══ */
+.card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px; margin-bottom: 16px;
+}
+.card-title {
+  font-size: 12px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px;
+}
+
+/* ═══ SUMMARY CARDS ═══ */
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.summary-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: 12px; padding: 20px;
+}
+.summary-card .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+.summary-card .value { font-size: 28px; font-weight: 700; font-family: 'IBM Plex Mono', monospace; }
+.summary-card .sub { font-size: 13px; margin-top: 4px; }
+.positive { color: var(--green); }
+.negative { color: var(--red); }
+
+/* ═══ TABLE ═══ */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  padding: 10px 12px; text-align: right; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+tbody td {
+  padding: 10px 12px; border-bottom: 1px solid rgba(42,53,80,0.5);
+  white-space: nowrap; vertical-align: middle;
+}
+tbody tr:hover { background: var(--bg-card-hover); }
+.ticker-cell { font-weight: 700; color: var(--accent); font-family: 'IBM Plex Mono'; }
+.mono { font-family: 'IBM Plex Mono', monospace; }
+.market-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 10px; font-weight: 600; letter-spacing: 0.5px;
+}
+.badge-us { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.badge-tase { background: rgba(168,85,247,0.15); color: #c084fc; }
+.badge-eu { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.weight-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 4px; }
+.weight-bar-fill { height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.3s; }
+
+/* ═══ ALERTS ═══ */
+.alert {
+  padding: 12px 16px; border-radius: 8px; margin-bottom: 8px;
+  font-size: 13px; display: flex; align-items: center; gap: 8px;
+}
+.alert-warn { background: var(--yellow-bg); border: 1px solid rgba(245,158,11,0.2); color: var(--yellow); }
+.alert-danger { background: var(--red-bg); border: 1px solid rgba(239,68,68,0.2); color: var(--red); }
+.alert-success { background: var(--green-bg); border: 1px solid rgba(34,197,94,0.2); color: var(--green); }
+
+/* ═══ FORMS ═══ */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form-group { margin-bottom: 16px; }
+.form-group.full { grid-column: 1 / -1; }
+.form-label { display: block; font-size: 12px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; padding: 10px 12px; background: var(--bg-input);
+  border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary);
+  font-family: inherit; font-size: 14px; transition: border-color 0.2s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.form-textarea { resize: vertical; min-height: 80px; }
+select option { background: var(--bg-secondary); color: var(--text-primary); }
+
+/* ═══ BUTTONS ═══ */
+.btn {
+  padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;
+  font-family: inherit; font-size: 14px; font-weight: 600; transition: all 0.2s;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+.btn-ghost:hover { background: var(--bg-card); color: var(--text-primary); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-danger { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+.btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+/* ═══ JOURNAL CARDS ═══ */
+.journal-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 20px; margin-bottom: 12px; transition: border-color 0.2s;
+}
+.journal-card:hover { border-color: var(--accent); }
+.journal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.journal-ticker { font-weight: 700; color: var(--accent); font-family: 'IBM Plex Mono'; font-size: 16px; }
+.journal-action {
+  padding: 2px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;
+}
+.action-buy { background: var(--green-bg); color: var(--green); }
+.action-sell { background: var(--red-bg); color: var(--red); }
+.action-hold { background: rgba(59,130,246,0.1); color: var(--accent); }
+.journal-thesis { color: var(--text-secondary); font-size: 13px; line-height: 1.5; margin: 8px 0; }
+.journal-meta { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--text-muted); }
+.journal-meta span { display: flex; align-items: center; gap: 4px; }
+.emotion-badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.emotion-1, .emotion-2 { background: var(--red-bg); color: var(--red); }
+.emotion-3 { background: rgba(59,130,246,0.1); color: var(--accent); }
+.emotion-4 { background: var(--yellow-bg); color: var(--yellow); }
+.emotion-5 { background: rgba(239,68,68,0.2); color: #ff6b6b; }
+
+/* ═══ CLAUDE EXPORT ═══ */
+.export-box {
+  background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+  line-height: 1.8; color: var(--text-secondary); white-space: pre-wrap;
+  max-height: 600px; overflow-y: auto; direction: ltr; text-align: left;
+}
+
+/* ═══ MODAL ═══ */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.modal-overlay.active { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--bg-secondary); border: 1px solid var(--border);
+  border-radius: 16px; padding: 24px; width: 90%; max-width: 600px;
+  max-height: 85vh; overflow-y: auto;
+}
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+/* ═══ CHART ═══ */
+.chart-container { position: relative; height: 260px; }
+
+/* ═══ RESPONSIVE ═══ */
+@media (max-width: 900px) {
+  .sidebar { width: 60px; }
+  .sidebar-brand p, .nav-item span:not(.icon) { display: none; }
+  .sidebar-brand h1 { font-size: 12px; letter-spacing: 0; }
+  .main { margin-right: 60px; padding: 16px; }
+  .summary-grid { grid-template-columns: 1fr 1fr; }
+  .form-grid { grid-template-columns: 1fr; }
+}
+
+/* ═══ SCROLLBAR ═══ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ═══ LOADING ═══ */
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 1100px) { .two-col { grid-template-columns: 1fr; } }
+
+.empty-state { text-align: center; padding: 48px 20px; color: var(--text-muted); }
+.empty-state .icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { font-size: 14px; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-brand">
+    <h1>STEADFAST</h1>
+    <p>Investment Tracker</p>
+  </div>
+  <div class="sidebar-nav">
+    <button class="nav-item active" onclick="showPage('dashboard')">
+      <span class="icon">📊</span><span>Dashboard</span>
+    </button>
+    <button class="nav-item" onclick="showPage('holdings')">
+      <span class="icon">💼</span><span>Holdings</span>
+    </button>
+    <button class="nav-item" onclick="showPage('journal')">
+      <span class="icon">📝</span><span>Journal</span>
+    </button>
+    <button class="nav-item" onclick="showPage('claude')">
+      <span class="icon">🤖</span><span>Claude Export</span>
+    </button>
+    <button class="nav-item" onclick="showPage('settings')">
+      <span class="icon">⚙️</span><span>Settings</span>
+    </button>
+  </div>
+  <div class="sidebar-footer">
+    <div id="lastUpdate" style="font-size:10px;color:var(--text-muted)">—</div>
+  </div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- ═══ DASHBOARD ═══ -->
+  <div id="page-dashboard" class="page active">
+    <div class="summary-grid" id="summaryCards"></div>
+    <div id="alerts"></div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Portfolio Allocation</div>
+        <div class="chart-container"><canvas id="allocChart"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top Holdings</div>
+        <div id="topHoldings"></div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div class="card-title">Market Breakdown</div>
+        <div id="marketBreakdown"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Quick Stats</div>
+        <div id="quickStats"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ HOLDINGS ═══ -->
+  <div id="page-holdings" class="page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 style="font-size:20px;font-weight:700;">Holdings</h2>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost btn-sm" onclick="fetchPrices()" id="fetchBtn">🔄 Refresh Prices</button>
+        <button class="btn btn-primary btn-sm" onclick="openAddHolding()">+ Add Position</button>
+      </div>
+    </div>
+    <div class="card table-wrap">
+      <table>
+        <thead><tr>
+          <th>Ticker</th><th>Name</th><th>Market</th><th>Shares</th>
+          <th>Avg Cost</th><th>Cost ₪</th><th>Price</th><th>Value ₪</th>
+          <th>P/L ₪</th><th>P/L %</th><th>Weight</th><th></th>
+        </tr></thead>
+        <tbody id="holdingsBody"></tbody>
+        <tfoot id="holdingsFoot"></tfoot>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══ JOURNAL ═══ -->
+  <div id="page-journal" class="page">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2 style="font-size:20px;font-weight:700;">Decision Journal</h2>
+      <button class="btn btn-primary btn-sm" onclick="openJournalForm()">+ New Entry</button>
+    </div>
+    <div id="journalList"></div>
+  </div>
+
+  <!-- ═══ CLAUDE EXPORT ═══ -->
+  <div id="page-claude" class="page">
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:8px;">Claude Coaching Export</h2>
+    <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">
+      Copy the text below and paste into <a href="https://claude.ai" target="_blank" style="color:var(--accent)">claude.ai</a> for behavioral coaching.
+    </p>
+    <button class="btn btn-primary btn-sm" onclick="copyExport()" style="margin-bottom:12px;">📋 Copy to Clipboard</button>
+    <div class="export-box" id="claudeExport"></div>
+  </div>
+
+  <!-- ═══ SETTINGS ═══ -->
+  <div id="page-settings" class="page">
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:16px;">Settings</h2>
+    <div class="card" style="max-width:500px;">
+      <div class="form-group">
+        <label class="form-label">🟢 Google Sheet Price Server URL (recommended)</label>
+        <input type="text" class="form-input" id="sheetUrlInput" placeholder="https://script.google.com/macros/s/..." dir="ltr">
+        <p style="font-size:11px;color:var(--text-muted);margin-top:4px;">Deploy the Price Server sheet as Web App and paste the URL here. This fetches ALL prices (US + ת"א + EU) in one call.</p>
+      </div>
+      <hr style="border-color:var(--border);margin:16px 0;">
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Fallback: if no Sheet URL, Alpha Vantage is used for US stocks only.</p>
+      <div class="form-group">
+        <label class="form-label">Alpha Vantage API Key (US stocks fallback)</label>
+        <input type="text" class="form-input" id="apiKeyInput" placeholder="Enter your API key" dir="ltr">
+      </div>
+      <hr style="border-color:var(--border);margin:16px 0;">
+      <div class="form-group">
+        <label class="form-label">USD/ILS Rate</label>
+        <input type="number" step="0.001" class="form-input" id="usdIlsInput" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">EUR/ILS Rate</label>
+        <input type="number" step="0.001" class="form-input" id="eurIlsInput" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cash Balance (₪)</label>
+        <input type="number" step="0.01" class="form-input" id="cashInput" dir="ltr">
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+      <hr style="border-color:var(--border);margin:20px 0;">
+      <div class="form-group">
+        <label class="form-label">Data Management</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-ghost btn-sm" onclick="exportData()">📥 Export JSON</button>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('importFile').click()">📤 Import JSON</button>
+          <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+          <button class="btn btn-danger btn-sm" onclick="if(confirm('Delete all data? This cannot be undone.')){localStorage.clear();location.reload();}">🗑 Reset All</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ADD/EDIT HOLDING MODAL ═══ -->
+<div class="modal-overlay" id="holdingModal">
+  <div class="modal">
+    <div class="modal-title" id="holdingModalTitle">Add Position</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Ticker</label>
+        <input type="text" class="form-input" id="h_ticker" placeholder="AAPL" dir="ltr" style="text-transform:uppercase;">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input type="text" class="form-input" id="h_name" placeholder="Apple Inc.">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Market</label>
+        <select class="form-select" id="h_market">
+          <option value="US">US (NASDAQ/NYSE)</option>
+          <option value="TASE">ת"א / TASE</option>
+          <option value="EU">Europe</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Currency</label>
+        <select class="form-select" id="h_currency">
+          <option value="USD">USD ($)</option>
+          <option value="ILS">ILS (₪)</option>
+          <option value="EUR">EUR (€)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Shares</label>
+        <input type="number" step="0.01" class="form-input" id="h_shares" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Average Cost (original currency)</label>
+        <input type="number" step="0.01" class="form-input" id="h_avgCost" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Total Cost ₪ (from broker)</label>
+        <input type="number" step="0.01" class="form-input" id="h_totalCostILS" dir="ltr">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Current Price (original currency)</label>
+        <input type="number" step="0.01" class="form-input" id="h_price" dir="ltr">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-start;margin-top:8px;">
+      <button class="btn btn-primary" onclick="saveHolding()">Save</button>
+      <button class="btn btn-ghost" onclick="closeModal('holdingModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ JOURNAL ENTRY MODAL ═══ -->
+<div class="modal-overlay" id="journalModal">
+  <div class="modal" style="max-width:650px;">
+    <div class="modal-title">Pre-Trade Checklist</div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label class="form-label">Action</label>
+        <select class="form-select" id="j_action">
+          <option value="buy">Buy / קנייה</option>
+          <option value="sell">Sell / מכירה</option>
+          <option value="hold">Hold / החזקה</option>
+          <option value="considering">Considering / שוקל</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Ticker</label>
+        <input type="text" class="form-input" id="j_ticker" dir="ltr" style="text-transform:uppercase;">
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Thesis — Why this, why now? / מה התזה?</label>
+        <textarea class="form-textarea" id="j_thesis" placeholder="Write your thesis in your own words..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Time Horizon / אופק זמן</label>
+        <select class="form-select" id="j_horizon">
+          <option value="< 6 months">פחות מ-6 חודשים</option>
+          <option value="6-12 months">6-12 חודשים</option>
+          <option value="1-3 years" selected>1-3 שנים</option>
+          <option value="3+ years">3+ שנים</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Emotional State / מצב רגשי</label>
+        <select class="form-select" id="j_emotion">
+          <option value="1">1 — פחד / Fearful 😰</option>
+          <option value="2">2 — חשש / Worried 😟</option>
+          <option value="3" selected>3 — רגוע / Calm 😌</option>
+          <option value="4">4 — נלהב / Excited 🤩</option>
+          <option value="5">5 — אופוריה / Euphoric 🚀</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label class="form-label">Main Risks / סיכונים עיקריים</label>
+        <textarea class="form-textarea" id="j_risks" placeholder="What could go wrong?" style="min-height:50px;"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Trigger / מה מניע את ההחלטה?</label>
+        <select class="form-select" id="j_trigger">
+          <option value="Following plan">לפי תוכנית</option>
+          <option value="News reaction">תגובה לחדשות</option>
+          <option value="FOMO">FOMO</option>
+          <option value="Fear of loss">פחד מהפסד</option>
+          <option value="Boredom">שעמום</option>
+          <option value="Rebalancing">איזון מחדש</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Exit Conditions / מתי תצא?</label>
+        <input type="text" class="form-input" id="j_exit" placeholder="Under what conditions would you sell?">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-start;margin-top:8px;">
+      <button class="btn btn-primary" onclick="saveJournal()">Save Entry</button>
+      <button class="btn btn-ghost" onclick="closeModal('journalModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+const DEFAULT_HOLDINGS = [
+  {id:'1',ticker:'AAPL',name:'Apple Inc.',market:'US',currency:'USD',shares:6,avgCost:133.50,totalCostILS:2608.05,price:248.96},
+  {id:'2',ticker:'BABA',name:'Alibaba Group',market:'US',currency:'USD',shares:28,avgCost:95.82,totalCostILS:9767.09,price:124.90},
+  {id:'3',ticker:'CRWD',name:'CrowdStrike',market:'US',currency:'USD',shares:10,avgCost:414.63,totalCostILS:12762.65,price:428.18},
+  {id:'4',ticker:'GE',name:'GE Aerospace',market:'US',currency:'USD',shares:4,avgCost:106.80,totalCostILS:1390.96,price:291.61},
+  {id:'5',ticker:'GEV',name:'GE Vernova',market:'US',currency:'USD',shares:1,avgCost:140.00,totalCostILS:517.58,price:877.39},
+  {id:'6',ticker:'LI',name:'Li Auto',market:'US',currency:'USD',shares:35,avgCost:25.15,totalCostILS:2972.35,price:17.10},
+  {id:'7',ticker:'MSFT',name:'Microsoft',market:'US',currency:'USD',shares:11,avgCost:419.91,totalCostILS:14210.72,price:389.02},
+  {id:'8',ticker:'NVDA',name:'NVIDIA',market:'US',currency:'USD',shares:48,avgCost:159.34,totalCostILS:24875.95,price:178.56},
+  {id:'9',ticker:'PLTR',name:'Palantir',market:'US',currency:'USD',shares:15,avgCost:129.71,totalCostILS:5944.86,price:155.68},
+  {id:'10',ticker:'RBLX',name:'Roblox',market:'US',currency:'USD',shares:44,avgCost:57.05,totalCostILS:8196.43,price:57.52},
+  {id:'11',ticker:'SLB',name:'SLB Limited',market:'US',currency:'USD',shares:11,avgCost:25.73,totalCostILS:921.54,price:47.82},
+  {id:'12',ticker:'TSLA',name:'Tesla',market:'US',currency:'USD',shares:25,avgCost:242.95,totalCostILS:22251.76,price:380.30},
+  {id:'13',ticker:'XPEV',name:'XPeng',market:'US',currency:'USD',shares:145,avgCost:16.24,totalCostILS:8389.99,price:19.15},
+  {id:'14',ticker:'IBIT',name:'iShares Bitcoin Trust',market:'US',currency:'USD',shares:37,avgCost:49.49,totalCostILS:6555.73,price:39.82},
+  {id:'15',ticker:'QQQ',name:'Invesco QQQ Trust',market:'US',currency:'USD',shares:9,avgCost:562.54,totalCostILS:16757.26,price:593.02},
+  {id:'16',ticker:'VOO',name:'Vanguard S&P 500',market:'US',currency:'USD',shares:8,avgCost:576.34,totalCostILS:15681.35,price:606.75},
+  {id:'17',ticker:'VOW3',name:'Volkswagen AG',market:'EU',currency:'EUR',shares:28,avgCost:116.87,totalCostILS:12434.87,price:85.68},
+  {id:'18',ticker:'ARDM',name:'אירודרום קבוצה',market:'TASE',currency:'ILS',shares:10000,avgCost:1.1203,totalCostILS:11203.14,price:3.83},
+  {id:'19',ticker:'AMT',name:'אמת',market:'TASE',currency:'ILS',shares:542,avgCost:9.7037,totalCostILS:5259.39,price:7.027},
+  {id:'20',ticker:'DIPL',name:'דיפלומט אחזקות',market:'TASE',currency:'ILS',shares:86,avgCost:42.2917,totalCostILS:3637.09,price:53.23},
+  {id:'21',ticker:'MNTSH',name:'מנדלסון תשתיות',market:'TASE',currency:'ILS',shares:644,avgCost:10.8321,totalCostILS:6975.86,price:16.00},
+  {id:'22',ticker:'PRTK',name:'פריורטק',market:'TASE',currency:'ILS',shares:40,avgCost:166.0505,totalCostILS:6642.02,price:298.10},
+  {id:'23',ticker:'RMLI',name:'רמי לוי',market:'TASE',currency:'ILS',shares:6,avgCost:216.475,totalCostILS:1298.85,price:402.60},
+];
+
+function loadState() {
+  return {
+    holdings: JSON.parse(localStorage.getItem('sf_holdings') || 'null') || DEFAULT_HOLDINGS,
+    journal: JSON.parse(localStorage.getItem('sf_journal') || '[]'),
+    settings: JSON.parse(localStorage.getItem('sf_settings') || 'null') || {
+      apiKey: 'CBBYLHSSB2SHIFIT',
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ7cYhfcuM2n4KEysutFM3xabvh7TqWiBU_rUU5Ffa5MKzHQnw6q5X1NIJOrAQ-Qg/pub?gid=1067134397&single=true&output=csv',
+      usdIls: 3.12,
+      eurIls: 3.58,
+      cash: 948.63,
+      lastUpdate: null
+    }
+  };
+}
+function saveState(state) {
+  localStorage.setItem('sf_holdings', JSON.stringify(state.holdings));
+  localStorage.setItem('sf_journal', JSON.stringify(state.journal));
+  localStorage.setItem('sf_settings', JSON.stringify(state.settings));
+}
+
+let state = loadState();
+let editingHoldingId = null;
+let allocChart = null;
+
+// ═══════════════════════════════════════════════════════════
+// CALCULATIONS
+// ═══════════════════════════════════════════════════════════
+function getFx(currency) {
+  if (currency === 'USD') return state.settings.usdIls;
+  if (currency === 'EUR') return state.settings.eurIls;
+  return 1;
+}
+
+function calcHolding(h) {
+  const fx = getFx(h.currency);
+  const marketValue = h.shares * h.price * fx;
+  const pl = marketValue - h.totalCostILS;
+  const plPct = h.totalCostILS > 0 ? pl / h.totalCostILS : 0;
+  return { ...h, fx, marketValue, pl, plPct };
+}
+
+function calcPortfolio() {
+  const enriched = state.holdings.map(calcHolding);
+  const totalValue = enriched.reduce((s, h) => s + h.marketValue, 0) + state.settings.cash;
+  const totalCost = enriched.reduce((s, h) => s + h.totalCostILS, 0);
+  const totalPL = enriched.reduce((s, h) => s + h.pl, 0);
+  enriched.forEach(h => h.weight = totalValue > 0 ? h.marketValue / totalValue : 0);
+  const byMarket = {};
+  enriched.forEach(h => { byMarket[h.market] = (byMarket[h.market] || 0) + h.marketValue; });
+  return { holdings: enriched, totalValue, totalCost, totalPL, totalPLPct: totalCost > 0 ? totalPL / totalCost : 0, byMarket, cash: state.settings.cash };
+}
+
+// ═══════════════════════════════════════════════════════════
+// FORMATTING
+// ═══════════════════════════════════════════════════════════
+const fmt = (n, d=0) => '₪' + n.toLocaleString('en', {minimumFractionDigits:d, maximumFractionDigits:d});
+const fmtPct = (n) => (n >= 0 ? '+' : '') + (n*100).toFixed(1) + '%';
+const fmtPrice = (n, c) => {
+  const sym = c==='USD' ? '$' : c==='EUR' ? '€' : '₪';
+  return sym + n.toLocaleString('en', {minimumFractionDigits:2, maximumFractionDigits:2});
+};
+const plClass = (n) => n >= 0 ? 'positive' : 'negative';
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'holdings') renderHoldings();
+  if (id === 'journal') renderJournal();
+  if (id === 'claude') renderClaudeExport();
+  if (id === 'settings') renderSettings();
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function renderDashboard() {
+  const p = calcPortfolio();
+
+  // Summary cards
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="summary-card">
+      <div class="label">Total Value</div>
+      <div class="value">${fmt(p.totalValue)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total Cost</div>
+      <div class="value" style="font-size:22px;color:var(--text-secondary)">${fmt(p.totalCost)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Total P/L</div>
+      <div class="value ${plClass(p.totalPL)}">${fmt(p.totalPL)}</div>
+      <div class="sub ${plClass(p.totalPL)}">${fmtPct(p.totalPLPct)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">Positions / Cash</div>
+      <div class="value" style="font-size:22px">${p.holdings.length}</div>
+      <div class="sub" style="color:var(--text-muted)">Cash: ${fmt(p.cash)}</div>
+    </div>
+  `;
+
+  // Alerts
+  const alerts = [];
+  const maxWeight = Math.max(...p.holdings.map(h => h.weight));
+  const maxH = p.holdings.find(h => h.weight === maxWeight);
+  if (maxWeight > 0.12) alerts.push({type:'warn', text:`⚠️ ריכוז גבוה: ${maxH.ticker} הוא ${(maxWeight*100).toFixed(0)}% מהתיק`});
+  const bigLoss = p.holdings.filter(h => h.plPct < -0.25);
+  bigLoss.forEach(h => alerts.push({type:'danger', text:`⚠️ הפסד משמעותי: ${h.ticker} ירד ${(Math.abs(h.plPct)*100).toFixed(0)}% — בדוק תזה`}));
+  const cashPct = p.cash / p.totalValue;
+  if (cashPct < 0.02) alerts.push({type:'warn', text:`⚠️ מזומן ${(cashPct*100).toFixed(1)}% — כמעט אפסי, אין כרית ביטחון`});
+  if (state.journal.length === 0) alerts.push({type:'success', text:'📝 אין רשומות ביומן — שקול לכתוב לפני העסקה הבאה'});
+  document.getElementById('alerts').innerHTML = alerts.map(a =>
+    `<div class="alert alert-${a.type}">${a.text}</div>`
+  ).join('');
+
+  // Allocation chart
+  const sorted = [...p.holdings].sort((a,b) => b.marketValue - a.marketValue);
+  const top8 = sorted.slice(0, 8);
+  const rest = sorted.slice(8).reduce((s,h) => s + h.marketValue, 0);
+  const labels = top8.map(h => h.ticker);
+  const data = top8.map(h => h.marketValue);
+  if (rest > 0) { labels.push('Other'); data.push(rest); }
+  if (p.cash > 0) { labels.push('Cash'); data.push(p.cash); }
+
+  if (allocChart) allocChart.destroy();
+  allocChart = new Chart(document.getElementById('allocChart'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data,
+        backgroundColor: ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#ec4899','#f97316','#6b7280','#84cc16','#14b8a6'],
+        borderColor: '#1a2235', borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { color: '#8899b4', font: { size: 11 }, padding: 8 } } }
+    }
+  });
+
+  // Top holdings
+  const top5 = sorted.slice(0, 6);
+  document.getElementById('topHoldings').innerHTML = top5.map(h => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <div>
+        <span class="ticker-cell">${h.ticker}</span>
+        <span style="color:var(--text-muted);font-size:12px;margin-right:8px;">${(h.weight*100).toFixed(1)}%</span>
+      </div>
+      <div style="text-align:left;">
+        <span class="mono" style="font-size:13px;">${fmt(h.marketValue)}</span>
+        <span class="mono ${plClass(h.plPct)}" style="font-size:12px;margin-right:8px;">${fmtPct(h.plPct)}</span>
+      </div>
+    </div>
+  `).join('');
+
+  // Market breakdown
+  const markets = [
+    { label: 'US Stocks & ETFs', key: 'US', badge: 'badge-us' },
+    { label: 'Europe', key: 'EU', badge: 'badge-eu' },
+    { label: 'ת"א / TASE', key: 'TASE', badge: 'badge-tase' },
+  ];
+  document.getElementById('marketBreakdown').innerHTML = markets.map(m => {
+    const val = p.byMarket[m.key] || 0;
+    const pct = p.totalValue > 0 ? val / p.totalValue : 0;
+    return `
+      <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span class="market-badge ${m.badge}">${m.label}</span>
+        <div><span class="mono">${fmt(val)}</span> <span style="color:var(--text-muted);font-size:12px;">(${(pct*100).toFixed(1)}%)</span></div>
+      </div>
+    `;
+  }).join('') + `
+    <div style="display:flex;justify-content:space-between;padding:10px 0;">
+      <span style="color:var(--text-muted);">Cash</span>
+      <span class="mono">${fmt(p.cash)}</span>
+    </div>`;
+
+  // Quick stats
+  const best = p.holdings.reduce((a,b) => a.plPct > b.plPct ? a : b);
+  const worst = p.holdings.reduce((a,b) => a.plPct < b.plPct ? a : b);
+  document.getElementById('quickStats').innerHTML = `
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-muted);">Best performer</span>
+      <span><span class="ticker-cell">${best.ticker}</span> <span class="positive">${fmtPct(best.plPct)}</span></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-muted);">Worst performer</span>
+      <span><span class="ticker-cell">${worst.ticker}</span> <span class="negative">${fmtPct(worst.plPct)}</span></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-muted);">Positions</span><span>${p.holdings.length}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span style="color:var(--text-muted);">Journal entries</span><span>${state.journal.length}</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;padding:8px 0;">
+      <span style="color:var(--text-muted);">Cash % of portfolio</span>
+      <span>${(cashPct*100).toFixed(1)}%</span>
+    </div>
+  `;
+
+  if (state.settings.lastUpdate) {
+    document.getElementById('lastUpdate').textContent = 'Updated: ' + new Date(state.settings.lastUpdate).toLocaleString('he-IL');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// HOLDINGS
+// ═══════════════════════════════════════════════════════════
+function renderHoldings() {
+  const p = calcPortfolio();
+  const body = document.getElementById('holdingsBody');
+  body.innerHTML = p.holdings.map(h => `
+    <tr>
+      <td class="ticker-cell">${h.ticker}</td>
+      <td style="font-size:12px;color:var(--text-secondary);">${h.name}</td>
+      <td><span class="market-badge badge-${h.market.toLowerCase()}">${h.market}</span></td>
+      <td class="mono" style="text-align:center;">${h.shares.toLocaleString()}</td>
+      <td class="mono" style="font-size:12px;">${fmtPrice(h.avgCost, h.currency)}</td>
+      <td class="mono">${fmt(h.totalCostILS)}</td>
+      <td class="mono">${fmtPrice(h.price, h.currency)}</td>
+      <td class="mono" style="font-weight:600;">${fmt(h.marketValue)}</td>
+      <td class="mono ${plClass(h.pl)}" style="font-weight:600;">${fmt(h.pl)}</td>
+      <td class="mono ${plClass(h.plPct)}" style="font-weight:600;">${fmtPct(h.plPct)}</td>
+      <td>
+        <div style="font-size:12px;color:var(--text-muted);">${(h.weight*100).toFixed(1)}%</div>
+        <div class="weight-bar"><div class="weight-bar-fill" style="width:${Math.min(h.weight*100*4, 100)}%"></div></div>
+      </td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="editHolding('${h.id}')" style="padding:4px 8px;font-size:11px;">✏️</button>
+        <button class="btn btn-ghost btn-sm" onclick="deleteHolding('${h.id}')" style="padding:4px 8px;font-size:11px;">🗑</button>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('holdingsFoot').innerHTML = `
+    <tr style="background:var(--bg-secondary);font-weight:700;">
+      <td colspan="5" style="padding:10px 12px;">TOTAL</td>
+      <td class="mono">${fmt(p.totalCost)}</td>
+      <td></td>
+      <td class="mono">${fmt(p.totalValue - p.cash)}</td>
+      <td class="mono ${plClass(p.totalPL)}">${fmt(p.totalPL)}</td>
+      <td class="mono ${plClass(p.totalPLPct)}">${fmtPct(p.totalPLPct)}</td>
+      <td colspan="2"></td>
+    </tr>
+  `;
+}
+
+function openAddHolding() {
+  editingHoldingId = null;
+  document.getElementById('holdingModalTitle').textContent = 'Add Position';
+  ['h_ticker','h_name','h_shares','h_avgCost','h_totalCostILS','h_price'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('h_market').value = 'US';
+  document.getElementById('h_currency').value = 'USD';
+  openModal('holdingModal');
+}
+
+function editHolding(id) {
+  const h = state.holdings.find(x => x.id === id);
+  if (!h) return;
+  editingHoldingId = id;
+  document.getElementById('holdingModalTitle').textContent = 'Edit ' + h.ticker;
+  document.getElementById('h_ticker').value = h.ticker;
+  document.getElementById('h_name').value = h.name;
+  document.getElementById('h_market').value = h.market;
+  document.getElementById('h_currency').value = h.currency;
+  document.getElementById('h_shares').value = h.shares;
+  document.getElementById('h_avgCost').value = h.avgCost;
+  document.getElementById('h_totalCostILS').value = h.totalCostILS;
+  document.getElementById('h_price').value = h.price;
+  openModal('holdingModal');
+}
+
+function saveHolding() {
+  const data = {
+    ticker: document.getElementById('h_ticker').value.toUpperCase().trim(),
+    name: document.getElementById('h_name').value.trim(),
+    market: document.getElementById('h_market').value,
+    currency: document.getElementById('h_currency').value,
+    shares: parseFloat(document.getElementById('h_shares').value) || 0,
+    avgCost: parseFloat(document.getElementById('h_avgCost').value) || 0,
+    totalCostILS: parseFloat(document.getElementById('h_totalCostILS').value) || 0,
+    price: parseFloat(document.getElementById('h_price').value) || 0,
+  };
+  if (!data.ticker) return alert('Enter a ticker symbol');
+
+  if (editingHoldingId) {
+    const idx = state.holdings.findIndex(h => h.id === editingHoldingId);
+    if (idx >= 0) state.holdings[idx] = { ...state.holdings[idx], ...data };
+  } else {
+    data.id = Date.now().toString();
+    state.holdings.push(data);
+  }
+  saveState(state);
+  closeModal('holdingModal');
+  renderHoldings();
+}
+
+function deleteHolding(id) {
+  if (!confirm('Delete this position?')) return;
+  state.holdings = state.holdings.filter(h => h.id !== id);
+  saveState(state);
+  renderHoldings();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRICE FETCHING (Alpha Vantage)
+// ═══════════════════════════════════════════════════════════
+async function fetchPrices() {
+  const btn = document.getElementById('fetchBtn');
+  btn.innerHTML = '<span class="spinner"></span> Fetching...';
+  btn.disabled = true;
+
+  const sheetUrl = state.settings.sheetUrl;
+  let updated = 0;
+
+  // ── METHOD 1: Google Sheet CSV (ALL markets — no script needed) ──
+  if (sheetUrl) {
+    try {
+      const resp = await fetch(sheetUrl);
+      const csv = await resp.text();
+      const rows = csv.split('\n').map(r => r.split(',').map(c => c.replace(/"/g, '').trim()));
+      
+      // Parse CSV: Column A = ticker/pair, Column B = price
+      // FX rows: USDILS, EURILS (rows with these in col A)
+      // Stock rows: AAPL, TSLA, ARDM etc.
+      for (const row of rows) {
+        const key = row[0];
+        const price = parseFloat(row[1]);
+        if (!key || isNaN(price) || price <= 0) continue;
+        
+        // FX rates
+        if (key === 'USDILS') { state.settings.usdIls = price; updated++; continue; }
+        if (key === 'EURILS') { state.settings.eurIls = price; updated++; continue; }
+        
+        // Stock prices
+        const h = state.holdings.find(x => x.ticker === key);
+        if (h) { h.price = price; updated++; }
+      }
+      
+      state.settings.lastUpdate = new Date().toISOString();
+      saveState(state);
+      btn.innerHTML = `✅ Updated ${updated} prices (Sheet)`;
+      btn.disabled = false;
+      setTimeout(() => { btn.innerHTML = '🔄 Refresh Prices'; }, 3000);
+      renderHoldings();
+      return;
+    } catch(e) {
+      console.warn('Sheet CSV fetch failed, trying Alpha Vantage:', e);
+    }
+  }
+
+  // ── METHOD 2: Alpha Vantage fallback (US only) ──
+  const apiKey = state.settings.apiKey;
+  if (!apiKey) { 
+    alert('Set your Google Sheet URL or Alpha Vantage API key in Settings'); 
+    btn.innerHTML = '🔄 Refresh Prices'; btn.disabled = false; return; 
+  }
+
+  const usTickers = state.holdings.filter(h => h.currency === 'USD').map(h => h.ticker);
+
+  try {
+    const fxResp = await fetch(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=USD&to_currency=ILS&apikey=${apiKey}`);
+    const fxData = await fxResp.json();
+    const rate = fxData?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'];
+    if (rate) { state.settings.usdIls = parseFloat(rate); updated++; }
+  } catch(e) { console.warn('FX USD error:', e); }
+
+  try {
+    const fxResp2 = await fetch(`https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=EUR&to_currency=ILS&apikey=${apiKey}`);
+    const fxData2 = await fxResp2.json();
+    const rate2 = fxData2?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'];
+    if (rate2) { state.settings.eurIls = parseFloat(rate2); updated++; }
+  } catch(e) { console.warn('FX EUR error:', e); }
+
+  for (const ticker of usTickers) {
+    try {
+      const resp = await fetch(`https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${ticker}&apikey=${apiKey}`);
+      const data = await resp.json();
+      const price = parseFloat(data?.['Global Quote']?.['05. price']);
+      if (price && price > 0) {
+        const h = state.holdings.find(x => x.ticker === ticker);
+        if (h) { h.price = price; updated++; }
+      }
+      await new Promise(r => setTimeout(r, 13000));
+    } catch(e) { console.warn('Price error:', ticker, e); }
+  }
+
+  state.settings.lastUpdate = new Date().toISOString();
+  saveState(state);
+  btn.innerHTML = `✅ Updated ${updated} prices (AV)`;
+  btn.disabled = false;
+  setTimeout(() => { btn.innerHTML = '🔄 Refresh Prices'; }, 3000);
+  renderHoldings();
+}
+
+// ═══════════════════════════════════════════════════════════
+// JOURNAL
+// ═══════════════════════════════════════════════════════════
+function renderJournal() {
+  const list = document.getElementById('journalList');
+  if (state.journal.length === 0) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📝</div><p>No journal entries yet.<br>Click "+ New Entry" before your next trade.</p></div>';
+    return;
+  }
+  const sorted = [...state.journal].sort((a,b) => new Date(b.date) - new Date(a.date));
+  list.innerHTML = sorted.map(j => {
+    const h = state.holdings.find(x => x.ticker === j.ticker);
+    const currentPL = h ? calcHolding(h).plPct : null;
+    return `
+      <div class="journal-card">
+        <div class="journal-header">
+          <div>
+            <span class="journal-ticker">${j.ticker}</span>
+            <span class="journal-action action-${j.action}">${j.action}</span>
+            ${currentPL !== null ? `<span class="mono ${plClass(currentPL)}" style="font-size:13px;margin-right:8px;">P/L: ${fmtPct(currentPL)}</span>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="color:var(--text-muted);font-size:12px;">${new Date(j.date).toLocaleDateString('he-IL')}</span>
+            <button class="btn btn-ghost btn-sm" onclick="deleteJournal('${j.id}')" style="padding:2px 6px;font-size:10px;">🗑</button>
+          </div>
+        </div>
+        <div class="journal-thesis">${j.thesis}</div>
+        <div class="journal-meta">
+          <span class="emotion-badge emotion-${j.emotion}">Emotion: ${j.emotion}/5</span>
+          <span>🎯 ${j.trigger}</span>
+          <span>⏳ ${j.horizon}</span>
+          ${j.risks ? `<span>⚠️ ${j.risks.substring(0, 60)}${j.risks.length > 60 ? '...' : ''}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function openJournalForm() { openModal('journalModal'); }
+
+function saveJournal() {
+  const entry = {
+    id: Date.now().toString(),
+    date: new Date().toISOString(),
+    action: document.getElementById('j_action').value,
+    ticker: document.getElementById('j_ticker').value.toUpperCase().trim(),
+    thesis: document.getElementById('j_thesis').value.trim(),
+    horizon: document.getElementById('j_horizon').value,
+    emotion: document.getElementById('j_emotion').value,
+    trigger: document.getElementById('j_trigger').value,
+    risks: document.getElementById('j_risks').value.trim(),
+    exit: document.getElementById('j_exit').value.trim(),
+  };
+  if (!entry.ticker || !entry.thesis) return alert('Fill in ticker and thesis');
+  state.journal.push(entry);
+  saveState(state);
+  closeModal('journalModal');
+  ['j_ticker','j_thesis','j_risks','j_exit'].forEach(id => document.getElementById(id).value = '');
+  renderJournal();
+}
+
+function deleteJournal(id) {
+  if (!confirm('Delete this journal entry?')) return;
+  state.journal = state.journal.filter(j => j.id !== id);
+  saveState(state);
+  renderJournal();
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLAUDE EXPORT
+// ═══════════════════════════════════════════════════════════
+function renderClaudeExport() {
+  const p = calcPortfolio();
+  const sorted = [...p.holdings].sort((a,b) => b.marketValue - a.marketValue);
+  const recentJournal = [...state.journal].sort((a,b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
+
+  let text = `You are my investment behavioral coach. You are NOT a stock tipper — never tell me to buy or sell anything specific. I am an Israeli retail investor.\n\n`;
+  text += `PORTFOLIO SNAPSHOT:\n`;
+  text += `Total Value: ${fmt(p.totalValue)} | Cost: ${fmt(p.totalCost)} | P/L: ${fmt(p.totalPL)} (${fmtPct(p.totalPLPct)}) | Cash: ${fmt(p.cash)}\n\n`;
+
+  text += `HOLDINGS (sorted by value):\n`;
+  sorted.forEach(h => {
+    text += `${h.ticker} (${h.name}): ${h.shares} shares, cost ${fmt(h.totalCostILS)}, value ${fmt(h.marketValue)}, P/L ${fmtPct(h.plPct)}, weight ${(h.weight*100).toFixed(1)}%\n`;
+  });
+
+  text += `\nMARKET BREAKDOWN:\n`;
+  Object.entries(p.byMarket).forEach(([m, v]) => {
+    text += `${m}: ${fmt(v)} (${(v/p.totalValue*100).toFixed(1)}%)\n`;
+  });
+
+  if (recentJournal.length > 0) {
+    text += `\nRECENT JOURNAL ENTRIES:\n`;
+    recentJournal.forEach(j => {
+      text += `${new Date(j.date).toLocaleDateString('en')} | ${j.action} ${j.ticker} | Emotion: ${j.emotion}/5 | Trigger: ${j.trigger}\n`;
+      text += `  Thesis: ${j.thesis}\n`;
+      if (j.risks) text += `  Risks: ${j.risks}\n`;
+    });
+  }
+
+  text += `\nPlease analyze:\n`;
+  text += `1. Behavioral patterns (good or concerning) — chasing, cutting winners, holding losers.\n`;
+  text += `2. Concentration risks — any position or sector too dominant.\n`;
+  text += `3. US vs TASE vs EU allocation balance.\n`;
+  text += `4. Ask me 2-3 reflective questions about my decisions.\n`;
+  text += `5. One concrete process improvement for next month.\n`;
+
+  document.getElementById('claudeExport').textContent = text;
+}
+
+async function copyExport() {
+  const text = document.getElementById('claudeExport').textContent;
+  await navigator.clipboard.writeText(text);
+  const btn = event.target;
+  btn.textContent = '✅ Copied!';
+  setTimeout(() => btn.textContent = '📋 Copy to Clipboard', 2000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════
+function renderSettings() {
+  document.getElementById('sheetUrlInput').value = state.settings.sheetUrl || '';
+  document.getElementById('apiKeyInput').value = state.settings.apiKey || '';
+  document.getElementById('usdIlsInput').value = state.settings.usdIls;
+  document.getElementById('eurIlsInput').value = state.settings.eurIls;
+  document.getElementById('cashInput').value = state.settings.cash;
+}
+
+function saveSettings() {
+  state.settings.sheetUrl = document.getElementById('sheetUrlInput').value.trim();
+  state.settings.apiKey = document.getElementById('apiKeyInput').value.trim();
+  state.settings.usdIls = parseFloat(document.getElementById('usdIlsInput').value) || 3.12;
+  state.settings.eurIls = parseFloat(document.getElementById('eurIlsInput').value) || 3.58;
+  state.settings.cash = parseFloat(document.getElementById('cashInput').value) || 0;
+  saveState(state);
+  alert('Settings saved ✓');
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'steadfast-backup-' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.holdings) state.holdings = data.holdings;
+      if (data.journal) state.journal = data.journal;
+      if (data.settings) state.settings = data.settings;
+      saveState(state);
+      alert('Data imported successfully ✓');
+      renderDashboard();
+    } catch(err) { alert('Invalid file format'); }
+  };
+  reader.readAsText(file);
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODALS
+// ═══════════════════════════════════════════════════════════
+function openModal(id) { document.getElementById(id).classList.add('active'); }
+function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', (e) => { if (e.target === el) el.classList.remove('active'); });
+});
+
+// Market/currency sync
+document.getElementById('h_market').addEventListener('change', (e) => {
+  const cur = document.getElementById('h_currency');
+  if (e.target.value === 'TASE') cur.value = 'ILS';
+  else if (e.target.value === 'EU') cur.value = 'EUR';
+  else cur.value = 'USD';
+});
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+renderDashboard();
+</script>
+</body>
+</html>
