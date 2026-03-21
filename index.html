@@ -161,7 +161,7 @@ select option{background:var(--bg1);}
       </div>
     </div>
     <div class="card tw">
-      <table><thead><tr><th>Ticker</th><th>Name</th><th>Market</th><th>Shares</th><th>Avg Cost</th><th>Cost ₪</th><th>Price</th><th>Value ₪</th><th>P/L ₪</th><th>P/L %</th><th>Weight</th><th>Role</th><th>Asset</th><th></th></tr></thead>
+      <table><thead><tr><th>Ticker</th><th>Name</th><th>Market</th><th>Shares</th><th>Avg Cost</th><th>Cost ₪</th><th>Price</th><th>Value ₪</th><th>P/L ₪</th><th>P/L %</th><th>Weight</th><th>Role</th><th>Asset</th><th style="position:sticky;left:0;background:var(--bg2);z-index:2">Actions</th></tr></thead>
       <tbody id="hB"></tbody><tfoot id="hF"></tfoot></table>
     </div>
   </div>
@@ -314,19 +314,19 @@ var DEF=[
 {id:'16',ticker:'VOO',name:'Vanguard S&P 500',market:'US',currency:'USD',shares:8,avgCost:576.34,totalCostILS:15681.35,price:606.75,role:'core',assetClass:'equity'},
 {id:'17',ticker:'VOW3',name:'Volkswagen AG',market:'EU',currency:'EUR',shares:28,avgCost:116.87,totalCostILS:12434.87,price:85.68,role:'satellite',assetClass:'equity'},
 {id:'18',ticker:'ARDM',name:'אירודרום',market:'TASE',currency:'ILS',shares:10000,avgCost:1.1203,totalCostILS:11203.14,price:3.83,role:'satellite',assetClass:'equity'},
-{id:'19',ticker:'EMCO',name:'אמת',market:'TASE',currency:'ILS',shares:542,avgCost:9.7037,totalCostILS:5259.39,price:7.027,role:'satellite',assetClass:'equity'},
+{id:'19',ticker:'AMT',name:'אמת',market:'TASE',currency:'ILS',shares:542,avgCost:9.7037,totalCostILS:5259.39,price:7.027,role:'satellite',assetClass:'equity'},
 {id:'20',ticker:'DIPL',name:'דיפלומט',market:'TASE',currency:'ILS',shares:86,avgCost:42.2917,totalCostILS:3637.09,price:53.23,role:'satellite',assetClass:'equity'},
-{id:'21',ticker:'MNIN',name:'מנדלסון',market:'TASE',currency:'ILS',shares:644,avgCost:10.8321,totalCostILS:6975.86,price:16.00,role:'satellite',assetClass:'equity'},
-{id:'22',ticker:'PRTC',name:'פריוריטק',market:'TASE',currency:'ILS',shares:40,avgCost:166.0505,totalCostILS:6642.02,price:298.10,role:'satellite',assetClass:'equity'},
+{id:'21',ticker:'MNTSH',name:'מנדלסון',market:'TASE',currency:'ILS',shares:644,avgCost:10.8321,totalCostILS:6975.86,price:16.00,role:'satellite',assetClass:'equity'},
+{id:'22',ticker:'PRTK',name:'פריוריטק',market:'TASE',currency:'ILS',shares:40,avgCost:166.0505,totalCostILS:6642.02,price:298.10,role:'satellite',assetClass:'equity'},
 {id:'23',ticker:'RMLI',name:'רמי לוי',market:'TASE',currency:'ILS',shares:6,avgCost:216.475,totalCostILS:1298.85,price:402.60,role:'satellite',assetClass:'equity'}
 ];
 var DSETT={apiKey:'CBBYLHSSB2SHIFIT',sheetUrl:'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ7cYhfcuM2n4KEysutFM3xabvh7TqWiBU_rUU5Ffa5MKzHQnw6q5X1NIJOrAQ-Qg/pub?gid=1067134397&single=true&output=csv',usdIls:3.60,eurIls:3.90,cash:948.63,lastUpdate:null,targetStocks:85,targetBonds:5,targetCash:10,targetIL:40,targetGlobal:60,maxSingle:10,maxUS:70,minCore:30,maxCrypto:10};
 
 function load(){
-  try{return{h:JSON.parse(localStorage.getItem('sf3_h'))||JSON.parse(JSON.stringify(DEF)),j:JSON.parse(localStorage.getItem('sf3_j'))||[],s:JSON.parse(localStorage.getItem('sf3_s'))||JSON.parse(JSON.stringify(DSETT)),hist:JSON.parse(localStorage.getItem('sf3_hist'))||[]};}
+  try{return{h:JSON.parse(localStorage.getItem('sf2_h'))||JSON.parse(JSON.stringify(DEF)),j:JSON.parse(localStorage.getItem('sf2_j'))||[],s:JSON.parse(localStorage.getItem('sf2_s'))||JSON.parse(JSON.stringify(DSETT)),hist:JSON.parse(localStorage.getItem('sf2_hist'))||[]};}
   catch(e){return{h:JSON.parse(JSON.stringify(DEF)),j:[],s:JSON.parse(JSON.stringify(DSETT)),hist:[]};}
 }
-function sav(){localStorage.setItem('sf3_h',JSON.stringify(S.h));localStorage.setItem('sf3_j',JSON.stringify(S.j));localStorage.setItem('sf3_s',JSON.stringify(S.s));localStorage.setItem('sf3_hist',JSON.stringify(S.hist));}
+function sav(){localStorage.setItem('sf2_h',JSON.stringify(S.h));localStorage.setItem('sf2_j',JSON.stringify(S.j));localStorage.setItem('sf2_s',JSON.stringify(S.s));localStorage.setItem('sf2_hist',JSON.stringify(S.hist));}
 var S=load(), eid=null;
 
 function fx(c){return c==='USD'?S.s.usdIls:c==='EUR'?S.s.eurIls:1;}
@@ -561,7 +561,7 @@ function rH(){
   if(!p.hs.length){E('hB').innerHTML='<tr><td colspan="14" class="empty">No holdings</td></tr>';E('hF').innerHTML='';return;}
   var r='';
   for(var i=0;i<p.hs.length;i++){var h=p.hs[i];
-    r+='<tr><td class="tk">'+h.ticker+'</td><td style="font-size:12px;color:var(--t2)">'+h.name+'</td><td><span class="bdg b-'+h.market.toLowerCase()+'">'+h.market+'</span></td><td class="mn" style="text-align:center">'+h.shares.toLocaleString()+'</td><td class="mn" style="font-size:12px">'+fPr(h.avgCost,h.currency)+'</td><td class="mn">'+fmt(h.totalCostILS)+'</td><td class="mn">'+fPr(h.price,h.currency)+'</td><td class="mn" style="font-weight:600">'+fmt(h.mv)+'</td><td class="mn '+pc(h.pl)+'" style="font-weight:600">'+fmt(h.pl)+'</td><td class="mn '+pc(h.pp)+'" style="font-weight:600">'+fP(h.pp)+'</td><td><div style="font-size:12px;color:var(--t3)">'+(h.w*100).toFixed(1)+'%</div><div class="wb"><div class="wf" style="width:'+Math.min(h.w*400,100)+'%"></div></div></td><td style="font-size:11px;color:var(--t3);text-transform:capitalize">'+h.role+'</td><td style="font-size:11px;color:var(--t3)">'+h.assetClass+'</td><td><button class="btn bg bs" onclick="edH(\''+h.id+'\')" style="padding:4px 8px;font-size:11px">\u270f\ufe0f</button><button class="btn bg bs" onclick="dlH(\''+h.id+'\')" style="padding:4px 8px;font-size:11px">\ud83d\uddd1</button></td></tr>';
+    r+='<tr><td class="tk">'+h.ticker+'</td><td style="font-size:12px;color:var(--t2)">'+h.name+'</td><td><span class="bdg b-'+h.market.toLowerCase()+'">'+h.market+'</span></td><td class="mn" style="text-align:center">'+h.shares.toLocaleString()+'</td><td class="mn" style="font-size:12px">'+fPr(h.avgCost,h.currency)+'</td><td class="mn">'+fmt(h.totalCostILS)+'</td><td class="mn">'+fPr(h.price,h.currency)+'</td><td class="mn" style="font-weight:600">'+fmt(h.mv)+'</td><td class="mn '+pc(h.pl)+'" style="font-weight:600">'+fmt(h.pl)+'</td><td class="mn '+pc(h.pp)+'" style="font-weight:600">'+fP(h.pp)+'</td><td><div style="font-size:12px;color:var(--t3)">'+(h.w*100).toFixed(1)+'%</div><div class="wb"><div class="wf" style="width:'+Math.min(h.w*400,100)+'%"></div></div></td><td style="font-size:11px;color:var(--t3);text-transform:capitalize">'+h.role+'</td><td style="font-size:11px;color:var(--t3)">'+h.assetClass+'</td><td style="position:sticky;left:0;background:var(--bg2);z-index:1;white-space:nowrap"><button class="btn bg bs" onclick="edH(\''+h.id+'\')" style="padding:6px 10px;font-size:13px">✏️</button> <button class="btn bg bs" onclick="dlH(\''+h.id+'\')" style="padding:6px 10px;font-size:13px">🗑️</button></td></tr>';
   }
   E('hB').innerHTML=r;
   E('hF').innerHTML='<tr style="background:var(--bg1);font-weight:700"><td colspan="5" style="padding:10px 12px">TOTAL</td><td class="mn">'+fmt(p.tc)+'</td><td></td><td class="mn">'+fmt(p.pv)+'</td><td class="mn '+pc(p.tpl)+'">'+fmt(p.tpl)+'</td><td class="mn '+pc(p.tpp)+'">'+fP(p.tpp)+'</td><td colspan="4"></td></tr>';
