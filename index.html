@@ -98,6 +98,18 @@ select option{background:var(--bg1);}
 .donut-dot{width:10px;height:10px;border-radius:3px;display:inline-block;flex-shrink:0;}
 .hist-wrap{position:relative;height:180px;margin-top:8px;}
 .hist-wrap svg{width:100%;height:100%;}
+
+.risk-bar-wrap{margin:4px 0;height:24px;background:var(--bdr);border-radius:6px;overflow:hidden;position:relative;}
+.risk-bar-fill{height:100%;border-radius:6px 0 0 6px;transition:width .4s;display:flex;align-items:center;padding-right:8px;font-size:11px;font-weight:600;color:#fff;min-width:30px;}
+.risk-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;}
+.stress-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.stress-card{background:var(--bgi);border:1px solid var(--bdr);border-radius:10px;padding:14px;transition:border-color .2s;}
+.stress-card:hover{border-color:var(--acc);}
+.stress-name{font-size:13px;font-weight:600;margin-bottom:6px;}
+.stress-impact{font-size:22px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.stress-detail{font-size:11px;color:var(--t3);margin-top:4px;}
+.risk-meter{display:flex;gap:2px;margin:8px 0;}
+.risk-meter div{height:8px;flex:1;border-radius:2px;}
 </style>
 </head>
 <body>
@@ -111,6 +123,7 @@ select option{background:var(--bg1);}
     <button class="nb" data-p="journal"><span class="ic">📝</span><span>Journal</span></button>
     <button class="nb" data-p="perplexity"><span class="ic">🔍</span><span>Perplexity Export</span></button>
     <button class="nb" data-p="settings"><span class="ic">⚙️</span><span>Settings</span></button>
+    <button class="nb" data-p="risk"><span class="ic">🛡</span><span>Risk Engine</span></button>
   </div>
   <div class="side-ft"><div id="upd">—</div></div>
 </nav>
@@ -202,6 +215,48 @@ select option{background:var(--bg1);}
         <button class="btn bd bs" onclick="if(confirm('מחק הכל?')){localStorage.clear();location.reload();}">🗑 Reset</button>
       </div>
       <button class="btn bp" onclick="savS()">💾 Save Settings</button>
+    </div>
+  </div>
+
+  <div id="pg-risk" class="pg">
+    <div class="st">🛡️ Risk Engine & Stress Testing</div>
+    <div class="g2">
+      <div class="card">
+        <div class="ct">Position Concentration</div>
+        <div id="rConc"></div>
+      </div>
+      <div class="card">
+        <div class="ct">Concentration Index (HHI)</div>
+        <div id="rHHI"></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="ct">Market Exposure</div>
+        <div id="rMkt"></div>
+      </div>
+      <div class="card">
+        <div class="ct">Currency Exposure</div>
+        <div id="rCur"></div>
+      </div>
+    </div>
+    <div class="g2">
+      <div class="card">
+        <div class="ct">Asset Class Exposure</div>
+        <div id="rAst"></div>
+      </div>
+      <div class="card">
+        <div class="ct">Role Breakdown</div>
+        <div id="rRole"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="ct">🔥 Stress Test Scenarios</div>
+      <div id="rStress"></div>
+    </div>
+    <div class="card">
+      <div class="ct">⚠️ Risk Alerts Summary</div>
+      <div id="rAlerts"></div>
     </div>
   </div>
 </div>
@@ -400,7 +455,7 @@ document.querySelectorAll('.nb').forEach(function(b){
     b.classList.add('on');
     var pg=b.getAttribute('data-p');
     E('pg-'+pg).classList.add('on');
-    var R={dashboard:rD,model:rM,holdings:rH,journal:rJ,perplexity:rPerp,settings:rSe};
+    var R={dashboard:rD,model:rM,holdings:rH,journal:rJ,perplexity:rPerp,settings:rSe,risk:rRisk};
     if(R[pg])R[pg]();
   });
 });
@@ -650,6 +705,159 @@ function fbC(t,btn){
   var ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';
   document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
   btn.textContent='\u2705 Copied!';setTimeout(function(){btn.textContent='\ud83d\udccb Copy to Clipboard';},2000);
+}
+
+
+// RISK ENGINE
+function riskBar(label, pct, color, target) {
+  var w = Math.min(Math.max(pct, 0), 100);
+  var tgt = target !== undefined ? '<span style="position:absolute;right:8px;font-size:11px;color:var(--t3)">target ' + target + '%</span>' : '';
+  return '<div class="risk-row"><span>' + label + '</span><span class="mn" style="font-size:12px">' + pct.toFixed(1) + '%</span></div>'
+    + '<div class="risk-bar-wrap">' + tgt + '<div class="risk-bar-fill" style="width:' + w + '%;background:' + color + '">' + (w > 8 ? pct.toFixed(1) + '%' : '') + '</div></div>';
+}
+
+function rRisk() {
+  var p = cP();
+  if (!p.hs.length) {
+    ['rConc','rHHI','rMkt','rCur','rAst','rRole','rStress','rAlerts'].forEach(function(id) { E(id).innerHTML = '<div class="empty"><p>No holdings data</p></div>'; });
+    return;
+  }
+  var s = S.s, tv = p.tv || 1;
+
+  // --- POSITION CONCENTRATION (top 10 sorted by weight) ---
+  var sorted = p.hs.slice().sort(function(a, b) { return b.w - a.w; });
+  var concHtml = '';
+  for (var i = 0; i < Math.min(10, sorted.length); i++) {
+    var h = sorted[i];
+    var c = h.w * 100 > s.maxSingle ? 'var(--red)' : h.w * 100 > s.maxSingle * 0.8 ? 'var(--yel)' : 'var(--acc)';
+    concHtml += riskBar(h.ticker + ' (' + h.name + ')', h.w * 100, c, undefined);
+  }
+  E('rConc').innerHTML = concHtml;
+
+  // --- HHI (Herfindahl-Hirschman Index) ---
+  var hhi = 0;
+  for (var i = 0; i < p.hs.length; i++) hhi += Math.pow(p.hs[i].w * 100, 2);
+  var hhiNorm = Math.min(hhi / 100, 100); // normalize for display
+  var hhiLevel = hhi < 1000 ? 'Low' : hhi < 2500 ? 'Moderate' : 'High';
+  var hhiColor = hhi < 1000 ? 'var(--grn)' : hhi < 2500 ? 'var(--yel)' : 'var(--red)';
+  E('rHHI').innerHTML = '<div style="text-align:center;padding:16px 0">'
+    + '<div style="font-size:36px;font-weight:700;font-family:\'IBM Plex Mono\';color:' + hhiColor + '">' + Math.round(hhi) + '</div>'
+    + '<div style="font-size:13px;color:var(--t2);margin-top:4px">HHI Score — <strong style="color:' + hhiColor + '">' + hhiLevel + ' Concentration</strong></div>'
+    + '<div class="risk-meter">'
+    + '<div style="background:var(--grn)"></div><div style="background:var(--grn)"></div><div style="background:var(--grn)"></div>'
+    + '<div style="background:' + (hhi >= 1000 ? 'var(--yel)' : 'var(--bdr)') + '"></div>'
+    + '<div style="background:' + (hhi >= 1000 ? 'var(--yel)' : 'var(--bdr)') + '"></div>'
+    + '<div style="background:' + (hhi >= 2500 ? 'var(--red)' : 'var(--bdr)') + '"></div>'
+    + '<div style="background:' + (hhi >= 2500 ? 'var(--red)' : 'var(--bdr)') + '"></div>'
+    + '</div>'
+    + '<div style="font-size:11px;color:var(--t3);margin-top:8px">0-1000: Diversified | 1000-2500: Moderate | 2500+: Concentrated</div>'
+    + '</div>';
+
+  // --- MARKET EXPOSURE ---
+  var mkts = [
+    { l: 'US', v: (p.bm.US || 0) / tv * 100, c: '#3b82f6', t: s.maxUS },
+    { l: 'Israel (TASE)', v: (p.bm.TASE || 0) / tv * 100, c: '#a855f7', t: s.targetIL },
+    { l: 'Europe', v: (p.bm.EU || 0) / tv * 100, c: '#f59e0b', t: undefined },
+    { l: 'Cash', v: p.caPct * 100, c: '#6b7280', t: s.targetCash }
+  ];
+  var mktH = '';
+  for (var i = 0; i < mkts.length; i++) mktH += riskBar(mkts[i].l, mkts[i].v, mkts[i].c, mkts[i].t);
+  E('rMkt').innerHTML = mktH;
+
+  // --- CURRENCY EXPOSURE ---
+  var curE = {};
+  for (var i = 0; i < p.hs.length; i++) {
+    var cu = p.hs[i].currency || 'ILS';
+    curE[cu] = (curE[cu] || 0) + p.hs[i].mv;
+  }
+  curE['ILS'] = (curE['ILS'] || 0) + p.cash;
+  var curColors = { USD: '#3b82f6', ILS: '#a855f7', EUR: '#f59e0b' };
+  var curH = '';
+  for (var cu in curE) {
+    curH += riskBar(cu, curE[cu] / tv * 100, curColors[cu] || '#6b7280', undefined);
+  }
+  E('rCur').innerHTML = curH;
+
+  // --- ASSET CLASS EXPOSURE ---
+  var astColors = { equity: '#3b82f6', bond: '#22c55e', crypto: '#f59e0b', cash_like: '#6b7280' };
+  var astH = '';
+  for (var ac in p.ba) {
+    var tgt = ac === 'equity' ? s.targetStocks : ac === 'bond' ? s.targetBonds : ac === 'crypto' ? s.maxCrypto : undefined;
+    astH += riskBar(ac.charAt(0).toUpperCase() + ac.slice(1).replace('_', ' '), p.ba[ac] / tv * 100, astColors[ac] || '#6b7280', tgt);
+  }
+  // Add cash
+  astH += riskBar('Cash', p.caPct * 100, '#6b7280', s.targetCash);
+  E('rAst').innerHTML = astH;
+
+  // --- ROLE BREAKDOWN ---
+  var roleColors = { core: '#22c55e', satellite: '#3b82f6', opportunistic: '#f59e0b' };
+  var roleH = '';
+  for (var rl in p.br) {
+    var tgt = rl === 'core' ? s.minCore : undefined;
+    roleH += riskBar(rl.charAt(0).toUpperCase() + rl.slice(1), p.br[rl] / tv * 100, roleColors[rl] || '#6b7280', tgt);
+  }
+  E('rRole').innerHTML = roleH;
+
+  // --- STRESS TEST SCENARIOS ---
+  var scenarios = [
+    { name: 'Market -10%', desc: 'All equities drop 10%', fn: function(h) { return h.assetClass === 'equity' ? -0.10 : 0; } },
+    { name: 'Market -20%', desc: 'All equities drop 20%', fn: function(h) { return h.assetClass === 'equity' ? -0.20 : 0; } },
+    { name: 'Market -30%', desc: 'Severe bear market', fn: function(h) { return h.assetClass === 'equity' ? -0.30 : 0; } },
+    { name: 'Crypto Crash -50%', desc: 'Bitcoin and crypto halve', fn: function(h) { return h.assetClass === 'crypto' ? -0.50 : 0; } },
+    { name: 'US Tech Selloff -25%', desc: 'US tech stocks drop 25%', fn: function(h) { return h.market === 'US' && h.assetClass === 'equity' ? -0.25 : 0; } },
+    { name: 'TASE Crisis -20%', desc: 'Israeli market drops 20%', fn: function(h) { return h.market === 'TASE' ? -0.20 : 0; } },
+    { name: 'USD/ILS -10%', desc: 'Shekel strengthens vs dollar', fn: function(h) { return h.currency === 'USD' ? -0.10 : 0; } },
+    { name: 'Largest Position -50%', desc: sorted[0].ticker + ' drops 50%', fn: function(h) { return h.ticker === sorted[0].ticker ? -0.50 : 0; } }
+  ];
+
+  var stressH = '<div class="stress-grid">';
+  for (var i = 0; i < scenarios.length; i++) {
+    var sc = scenarios[i];
+    var loss = 0;
+    for (var j = 0; j < p.hs.length; j++) {
+      var impact = sc.fn(p.hs[j]);
+      loss += p.hs[j].mv * impact;
+    }
+    var lossPct = tv > 0 ? loss / tv : 0;
+    var severity = Math.abs(lossPct);
+    var sevColor = severity > 0.15 ? 'var(--red)' : severity > 0.08 ? 'var(--yel)' : 'var(--grn)';
+    stressH += '<div class="stress-card">'
+      + '<div class="stress-name">' + sc.name + '</div>'
+      + '<div class="stress-impact" style="color:' + sevColor + '">' + fP(lossPct) + '</div>'
+      + '<div class="stress-detail">' + fmt(loss) + ' | ' + sc.desc + '</div>'
+      + '</div>';
+  }
+  stressH += '</div>';
+  E('rStress').innerHTML = stressH;
+
+  // --- RISK ALERTS SUMMARY ---
+  var ra = [];
+  // Concentration
+  for (var i = 0; i < p.hs.length; i++) {
+    if (p.hs[i].w * 100 > s.maxSingle) ra.push({ c: 'd', m: '🔴 ' + p.hs[i].ticker + ' is ' + (p.hs[i].w * 100).toFixed(1) + '% of portfolio (max ' + s.maxSingle + '%)' });
+  }
+  if (hhi > 2500) ra.push({ c: 'd', m: '🔴 HHI ' + Math.round(hhi) + ' — portfolio is highly concentrated' });
+  else if (hhi > 1500) ra.push({ c: 'w', m: '🟡 HHI ' + Math.round(hhi) + ' — moderate concentration' });
+  // Market
+  if (p.usPct * 100 > s.maxUS) ra.push({ c: 'w', m: '🟡 US exposure ' + (p.usPct * 100).toFixed(1) + '% exceeds ' + s.maxUS + '% target' });
+  if (p.ilPct * 100 < s.targetIL * 0.5) ra.push({ c: 'i', m: '🔵 Israel exposure ' + (p.ilPct * 100).toFixed(1) + '% — well below ' + s.targetIL + '% target' });
+  // Crypto
+  if (p.crPct * 100 > s.maxCrypto) ra.push({ c: 'w', m: '🟡 Crypto ' + (p.crPct * 100).toFixed(1) + '% exceeds ' + s.maxCrypto + '% cap' });
+  // Core
+  if (p.corePct * 100 < s.minCore) ra.push({ c: 'w', m: '🟡 Core ETFs ' + (p.corePct * 100).toFixed(1) + '% below ' + s.minCore + '% minimum' });
+  // Cash
+  if (p.caPct * 100 < s.targetCash * 0.3) ra.push({ c: 'w', m: '🟡 Cash ' + (p.caPct * 100).toFixed(1) + '% — very low safety buffer' });
+  // Currency concentration
+  var maxCurPct = 0;
+  var maxCurName = '';
+  for (var cu in curE) { var cp = curE[cu] / tv * 100; if (cp > maxCurPct) { maxCurPct = cp; maxCurName = cu; } }
+  if (maxCurPct > 75) ra.push({ c: 'w', m: '🟡 ' + maxCurName + ' currency is ' + maxCurPct.toFixed(1) + '% — high currency concentration' });
+  // Big losers
+  for (var i = 0; i < p.hs.length; i++) {
+    if (p.hs[i].pp < -0.30) ra.push({ c: 'd', m: '🔴 ' + p.hs[i].ticker + ' down ' + (Math.abs(p.hs[i].pp) * 100).toFixed(0) + '% — review thesis' });
+  }
+  if (!ra.length) ra.push({ c: 's', m: '✅ No critical risk alerts' });
+  E('rAlerts').innerHTML = ra.map(function(a) { return '<div class="al al-' + a.c + '">' + a.m + '</div>'; }).join('');
 }
 
 // INIT - save initial snapshot
