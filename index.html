@@ -74,6 +74,10 @@ svg.ic.sm{width:15px;height:15px;}
 .tb-val .vl{font-size:19px;font-weight:600;font-family:var(--fm);font-variant-numeric:tabular-nums;}
 .tb-spacer{flex:1;}
 .tb-meta{font-size:11px;color:var(--t3);text-align:end;line-height:1.5;}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--grn);
+  margin-inline-end:5px;vertical-align:middle;animation:pulse 1.8s infinite;}
+.live-lbl{color:var(--grn);font-weight:600;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(48,209,88,.5);}70%{box-shadow:0 0 0 6px rgba(48,209,88,0);}100%{box-shadow:0 0 0 0 rgba(48,209,88,0);}}
 .pgwrap{padding:24px 28px 64px;max-width:1280px;}
 .pg{display:none;animation:fade .22s ease;}
 .pg.on{display:block;}
@@ -538,6 +542,18 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
       <div class="card" style="max-width:760px">
         <div class="ct" data-i18n="data_sources">Data Sources</div>
         <div class="fi"><label class="fl" data-i18n="sheet_url">Google Sheet CSV URL</label><input type="text" id="s_sh" dir="ltr" placeholder="https://docs.google.com/.../pub?output=csv"></div>
+        <div class="fi">
+          <label class="fl" data-i18n="finnhub_key">Finnhub API Key (live US stocks + crypto ETFs)</label>
+          <input type="text" id="s_fh" dir="ltr" placeholder="finnhub.io">
+          <p style="font-size:11.5px;color:var(--t3);margin-top:6px" data-i18n="finnhub_help">Free real-time US prices. Get a key at finnhub.io and paste it here. US holdings update from Finnhub; TASE & Europe keep using the sheet.</p>
+        </div>
+        <div class="fi" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="checkbox" id="s_ar" style="width:auto;min-height:0">
+          <label class="fl" for="s_ar" style="margin:0" data-i18n="auto_refresh">Auto-refresh while open</label>
+          <span style="font-size:12px;color:var(--t3)" data-i18n="auto_refresh_help">Re-fetch prices automatically every</span>
+          <input type="number" id="s_arsec" dir="ltr" min="15" step="5" style="width:80px">
+          <span style="font-size:12px;color:var(--t3)" data-i18n="seconds">seconds</span>
+        </div>
         <div class="fi"><label class="fl" data-i18n="av_key">Alpha Vantage API Key (optional US-only fallback)</label><input type="text" id="s_ap" dir="ltr"></div>
         <hr>
         <div class="fg">
@@ -588,6 +604,7 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
     <div class="fi"><label class="fl" data-i18n="th_asset">Asset Class</label><select id="h_as"><option value="equity">Equity</option><option value="bond">Bond</option><option value="cash_like">Cash-like</option><option value="crypto">Crypto</option></select></div>
     <div class="fi"><label class="fl" data-i18n="alert_above_lbl">Alert above (price)</label><input type="number" step="0.0001" id="h_aa" dir="ltr"></div>
     <div class="fi"><label class="fl" data-i18n="alert_below_lbl">Alert below (price)</label><input type="number" step="0.0001" id="h_ab" dir="ltr"></div>
+    <div class="fi fw" style="display:flex;align-items:center;gap:9px"><input type="checkbox" id="h_mp" style="width:auto;min-height:0"><label class="fl" for="h_mp" style="margin:0" data-i18n="manual_price">Manual price — not fetched from the sheet</label></div>
   </div>
   <div style="display:flex;gap:8px;margin-top:8px"><button class="btn bp" onclick="savH()" data-i18n="save">Save</button><button class="btn bg" onclick="clM('hMod')" data-i18n="cancel">Cancel</button></div>
 </div></div>
@@ -650,7 +667,8 @@ var DEF=[
 {id:'22',ticker:'PRTK',name:'פריוריטק',market:'TASE',currency:'ILS',shares:40,avgCost:166.0505,totalCostILS:6642.02,price:298.10,role:'satellite',assetClass:'equity'},
 {id:'23',ticker:'RMLI',name:'רמי לוי',market:'TASE',currency:'ILS',shares:6,avgCost:216.475,totalCostILS:1298.85,price:402.60,role:'satellite',assetClass:'equity'}
 ];
-var DSETT={apiKey:'',sheetUrl:'',usdIls:3.60,eurIls:3.90,cash:948.63,lastUpdate:null,lang:'he',
+var DSETT={apiKey:'',sheetUrl:'',finnhubKey:'',autoRefresh:true,autoRefreshSec:60,
+  usdIls:3.60,eurIls:3.90,cash:948.63,lastUpdate:null,lang:'he',
   targetStocks:85,targetBonds:5,targetCash:10,targetIL:40,targetGlobal:60,
   maxSingle:10,maxUS:70,minCore:30,maxCrypto:10};
 
@@ -713,6 +731,10 @@ var I18N={
     copy_formulas:'Copy Formulas',copied:'Copied',
     ps_note:'TASE tickers that show #N/A need the correct TLV symbol in a holding\'s "Sheet symbol" field. SPY and TA-125 benchmark rows are included automatically.',
     data_sources:'Data Sources',sheet_url:'Google Sheet CSV URL',av_key:'Alpha Vantage API Key (optional US-only fallback)',
+    finnhub_key:'Finnhub API Key (live US stocks + crypto ETFs)',
+    finnhub_help:'Free real-time US prices. Get a key at finnhub.io (free, ~10s signup) and paste it here. US holdings update from Finnhub; TASE & Europe keep using the sheet.',
+    auto_refresh:'Auto-refresh while open',auto_refresh_help:'Re-fetch prices automatically every',seconds:'seconds',
+    live_on:'Live',auto_off:'Off',
     cash:'Cash (₪)',target_model:'Target Model',
     t_stocks:'Stocks %',t_bonds:'Bonds %',t_cash:'Cash %',t_israel:'Israel %',t_global:'Global %',
     t_maxsingle:'Max Single %',t_maxus:'Max US %',t_mincore:'Min Core %',t_maxcrypto:'Max Crypto %',
@@ -772,7 +794,8 @@ var I18N={
     week52:'52-week range',contribution:'Contribution to Return',contrib_hint:'How much each holding adds to or drags on total P/L.',
     diversification:'Diversification',div_well:'Well diversified',div_mod:'Moderately concentrated',div_high:'Highly concentrated',
     holding_entries:'Journal entries for {t}',no_holding_entries:'No journal entries for this holding yet.',
-    weight_lbl:'Weight',mv_up:'Gainers',mv_down:'Decliners',view_detail:'Details',edit:'Edit',del:'Delete'
+    weight_lbl:'Weight',mv_up:'Gainers',mv_down:'Decliners',view_detail:'Details',edit:'Edit',del:'Delete',
+    manual_price:'Manual price — not fetched from the sheet',manual_tag:'Manual'
   },
   he:{
     brand_sub:'מעקב תיק',
@@ -807,6 +830,10 @@ var I18N={
     copy_formulas:'העתק נוסחאות',copied:'הועתק',
     ps_note:'טיקרים של TASE שמציגים ‎#N/A‎ צריכים את סמל ה-TLV הנכון בשדה "סמל גיליון". שורות מדד SPY ו-TA-125 נכללות אוטומטית.',
     data_sources:'מקורות נתונים',sheet_url:'כתובת CSV של גיליון Google',av_key:'מפתח Alpha Vantage (גיבוי ל-US בלבד, אופציונלי)',
+    finnhub_key:'מפתח Finnhub (מניות US + קריפטו-ETF בזמן-אמת)',
+    finnhub_help:'מחירי US בזמן-אמת בחינם. צור מפתח ב-finnhub.io (חינם, ~10 שניות) והדבק כאן. אחזקות US יתעדכנו מ-Finnhub; TASE ואירופה ימשיכו דרך הגיליון.',
+    auto_refresh:'רענון אוטומטי כשהאתר פתוח',auto_refresh_help:'משוך מחירים אוטומטית כל',seconds:'שניות',
+    live_on:'לייב',auto_off:'כבוי',
     cash:'מזומן (₪)',target_model:'מודל יעד',
     t_stocks:'מניות %',t_bonds:'אג"ח %',t_cash:'מזומן %',t_israel:'ישראל %',t_global:'גלובלי %',
     t_maxsingle:'מקס\' בודד %',t_maxus:'מקס\' US %',t_mincore:'מינ\' Core %',t_maxcrypto:'מקס\' קריפטו %',
@@ -866,7 +893,8 @@ var I18N={
     week52:'טווח 52 שבועות',contribution:'תרומה לתשואה',contrib_hint:'כמה כל אחזקה מוסיפה או גורעת מהרווח הכולל.',
     diversification:'פיזור',div_well:'מפוזר היטב',div_mod:'ריכוזיות בינונית',div_high:'ריכוזי מאוד',
     holding_entries:'רשומות יומן עבור {t}',no_holding_entries:'אין עדיין רשומות יומן לאחזקה הזו.',
-    weight_lbl:'משקל',mv_up:'עולים',mv_down:'יורדים',view_detail:'פירוט',edit:'עריכה',del:'מחיקה'
+    weight_lbl:'משקל',mv_up:'עולים',mv_down:'יורדים',view_detail:'פירוט',edit:'עריכה',del:'מחיקה',
+    manual_price:'מחיר ידני — לא נמשך מהגיליון',manual_tag:'ידני'
   }
 };
 function t(key,vars){
@@ -1143,7 +1171,8 @@ function renderHeader(){
   E('tbValue').textContent=fmt(p.tv);
   var plEl=E('tbPL');plEl.textContent=fmt(p.tpl)+'  '+fP(p.tpp);plEl.className='vl '+pc(p.tpl);plEl.style.fontSize='16px';
   var upd=S.s.lastUpdate?new Date(S.s.lastUpdate).toLocaleString(loc()):t('never');
-  E('tbMeta').innerHTML=t('positions')+': '+p.hs.length+' · '+t('cash_w')+': '+fmt(p.cash)+'<br>'+t('updated_at')+': '+upd;
+  var live=(S.s.autoRefresh!==false&&hasLiveSource())?'<span class="live-dot"></span><span class="live-lbl">'+t('live_on')+'</span> · ':'';
+  E('tbMeta').innerHTML=t('positions')+': '+p.hs.length+' · '+t('cash_w')+': '+fmt(p.cash)+'<br>'+live+t('updated_at')+': '+upd;
 }
 
 /* ---- UNIFIED ALERTS ENGINE ----
@@ -1435,6 +1464,7 @@ function rJStats(){
 function rSe(){
   var s=S.s;
   E('s_sh').value=s.sheetUrl||'';E('s_ap').value=s.apiKey||'';
+  E('s_fh').value=s.finnhubKey||'';E('s_ar').checked=s.autoRefresh!==false;E('s_arsec').value=s.autoRefreshSec||60;
   E('s_usd').value=s.usdIls;E('s_eur').value=s.eurIls;E('s_csh').value=s.cash;
   E('s_tS').value=s.targetStocks;E('s_tB').value=s.targetBonds;E('s_tC').value=s.targetCash;
   E('s_tI').value=s.targetIL;E('s_tG').value=s.targetGlobal;E('s_mS').value=s.maxSingle;
@@ -1445,6 +1475,8 @@ function rSe(){
 function numOr(id,fb){var v=parseFloat(E(id).value);return isNaN(v)?fb:v;}
 function savS(){
   var s=S.s;s.sheetUrl=E('s_sh').value.trim();s.apiKey=E('s_ap').value.trim();
+  s.finnhubKey=E('s_fh').value.trim();s.autoRefresh=E('s_ar').checked;
+  s.autoRefreshSec=Math.max(15,numOr('s_arsec',60));
   var u=parseFloat(E('s_usd').value);if(u>0)s.usdIls=u;
   var e=parseFloat(E('s_eur').value);if(e>0)s.eurIls=e;
   s.cash=numOr('s_csh',0);
@@ -1452,7 +1484,7 @@ function savS(){
   s.targetCash=numOr('s_tC',s.targetCash);s.targetIL=numOr('s_tI',s.targetIL);
   s.targetGlobal=numOr('s_tG',s.targetGlobal);s.maxSingle=numOr('s_mS',s.maxSingle);
   s.maxUS=numOr('s_mU',s.maxUS);s.minCore=numOr('s_mC',s.minCore);
-  s.maxCrypto=numOr('s_mX',s.maxCrypto);sav();renderHeader();alert(t('saved'));rD();
+  s.maxCrypto=numOr('s_mX',s.maxCrypto);sav();renderHeader();startAutoRefresh();alert(t('saved'));rD();
 }
 
 /* GOOGLEFINANCE formula block from current holdings + FX + benchmarks */
@@ -1464,6 +1496,7 @@ function buildFormulas(){
   lines.push('TA125\t=GOOGLEFINANCE("INDEXTLV:TA125")');
   for(var i=0;i<S.h.length;i++){
     var h=S.h[i],key=(h.sheetSymbol||h.ticker),sym;
+    if(h.manualPrice)continue; /* maintained by hand — not in the sheet */
     if(h.sheetSymbol){sym=h.sheetSymbol;}
     else if(h.market==='TASE'){sym='TLV:'+h.ticker;}
     else{sym=h.ticker;}
@@ -1670,39 +1703,67 @@ async function fetchFxRates(){
   return false;
 }
 function fetchBtnLabel(){return ic('refresh',true)+'<span data-i18n="refresh">'+t('refresh')+'</span>';}
-/* on the first refresh of a new day, the last known prices become "previous close" */
-function rollPrevClose(){
+/* on the first refresh of a new day, the last known prices become "previous close"
+   (skips holdings already given an accurate prevClose this refresh, e.g. by Finnhub) */
+function rollPrevClose(handled){
   var d0=new Date().toISOString().slice(0,10);
   if(S.s.lastUpdate&&S.s.lastUpdate.slice(0,10)===d0)return;
-  for(var i=0;i<S.h.length;i++)S.h[i].prevClose=S.h[i].price;
+  for(var i=0;i<S.h.length;i++)if(!(handled&&handled[S.h[i].id]))S.h[i].prevClose=S.h[i].price;
 }
+/* Finnhub real-time quote — {c:current, pc:prevClose} or null. CORS-enabled, free tier. */
+async function fetchFinnhub(symbol,key){
+  try{
+    var r=await fetch('https://finnhub.io/api/v1/quote?symbol='+encodeURIComponent(symbol)+'&token='+encodeURIComponent(key));
+    if(!r.ok)return null;
+    var d=await r.json();
+    if(d&&d.c>0)return{c:d.c,pc:d.pc};
+  }catch(e){}
+  return null;
+}
+var fetching=false;
 async function doFetch(){
+  if(fetching)return; fetching=true;
   var btn=E('fbtn');
   if(btn){btn.innerHTML='<span class="spin"></span> '+t('refreshing');btn.disabled=true;}
-  var matched=[],missing=[];
+  var matched=[],missing=[],handled={},did=false;
   try{
+    /* 1) Finnhub — live US holdings (incl. US-listed crypto ETFs like IBIT) */
+    if(S.s.finnhubKey){
+      did=true;
+      var us=S.h.filter(function(h){return !h.manualPrice&&h.market==='US';});
+      var qs=await Promise.all(us.map(function(h){return fetchFinnhub((h.sheetSymbol||h.ticker),S.s.finnhubKey);}));
+      for(var u=0;u<us.length;u++){var hu=us[u],q=qs[u];handled[hu.id]=true;
+        if(q&&q.c>0){if(q.pc>0)hu.prevClose=q.pc;hu.price=q.c;matched.push(hu.ticker);}
+        else missing.push(hu.ticker);}
+    }
+    /* 2) Google Sheet — TASE / Europe / benchmarks / FX (skips Finnhub-handled + manual) */
     if(S.s.sheetUrl){
+      did=true;
       var r=await fetch(S.s.sheetUrl,{cache:'no-store'});
       if(!r.ok)throw new Error('HTTP '+r.status);
       var map=parseCsv(await r.text());
       if(map['USDILS']>0)S.s.usdIls=map['USDILS'];
       if(map['EURILS']>0)S.s.eurIls=map['EURILS'];
-      if(!(map['USDILS']>0))await fetchFxRates(); /* patch FX if the sheet lacks it */
-      rollPrevClose();
-      for(var i=0;i<S.h.length;i++){
-        var h=S.h[i],key=(h.sheetSymbol||h.ticker).toUpperCase();
+      if(!(map['USDILS']>0))await fetchFxRates();
+      rollPrevClose(handled);
+      for(var i=0;i<S.h.length;i++){var h=S.h[i],key=(h.sheetSymbol||h.ticker).toUpperCase();
+        if(h.manualPrice||handled[h.id])continue;
         if(map[key]>0){h.price=map[key];matched.push(h.ticker);}else missing.push(h.ticker);
         if(map[key+'_HI']>0)h.hi52=map[key+'_HI'];
-        if(map[key+'_LO']>0)h.lo52=map[key+'_LO'];
-      }
-      S.s.lastUpdate=new Date().toISOString();
+        if(map[key+'_LO']>0)h.lo52=map[key+'_LO'];}
       snapHistory({spy:map['SPY'],ta:map['TA125']});
+    }
+    /* 3) finalize source-based modes */
+    if(did){
+      S.s.lastUpdate=new Date().toISOString();
+      if(!S.s.sheetUrl)snapHistory(); /* finnhub-only — still record a value point */
       sav();rD();rH();renderHeader();
       if(btn)btn.innerHTML=ic('check',true)+' '+matched.length;
-      var msg=t('fetch_ok',{n:matched.length,tot:S.h.length});
+      var msg=t('fetch_ok',{n:matched.length,tot:matched.length+missing.length});
       if(missing.length)msg+=' '+t('fetch_missing',{list:missing.join(', ')});
       showFetchMsg(missing.length?'al-w':'al-s',msg);
     } else {
+      /* 4) legacy fallbacks: Alpha Vantage, FX-only, or nothing configured */
       var fxOk=await fetchFxRates();
       if(S.s.apiKey){
         rollPrevClose();
@@ -1713,7 +1774,7 @@ async function doFetch(){
             if(pp>0){for(var c=0;c<S.h.length;c++)if(S.h[c].ticker===tickers[b]){S.h[c].price=pp;matched.push(tickers[b]);break;}}
             await new Promise(function(res){setTimeout(res,1200);});}catch(e){}
         }
-        for(var m=0;m<S.h.length;m++)if(matched.indexOf(S.h[m].ticker)===-1)missing.push(S.h[m].ticker);
+        for(var m=0;m<S.h.length;m++)if(!S.h[m].manualPrice&&matched.indexOf(S.h[m].ticker)===-1)missing.push(S.h[m].ticker);
       }
       if(matched.length){
         S.s.lastUpdate=new Date().toISOString();
@@ -1728,8 +1789,7 @@ async function doFetch(){
         if(btn)btn.innerHTML=fetchBtnLabel();
       } else {
         showFetchMsg('al-i',t('need_url'));
-        if(btn){btn.innerHTML=fetchBtnLabel();btn.disabled=false;}
-        return;
+        if(btn)btn.innerHTML=fetchBtnLabel();
       }
     }
   }catch(e){
@@ -1737,6 +1797,7 @@ async function doFetch(){
     if(btn)btn.innerHTML=t('error');
     showFetchMsg('al-d',t('fetch_err'));
   }finally{
+    fetching=false;
     if(btn){btn.disabled=false;setTimeout(function(){btn.innerHTML=fetchBtnLabel();},3000);}
   }
 }
@@ -1745,11 +1806,23 @@ function showFetchMsg(cls,msg){
   el.innerHTML='<div class="al '+cls+'">'+alIcon(cls.replace('al-',''))+'<span>'+msg+'</span></div>';
   if(cls==='al-s')setTimeout(function(){el.innerHTML='';},6000);
 }
-/* auto-refresh on open when prices are stale (>12h) and a sheet is configured */
+/* recurring auto-refresh while the tab is open (only when a live source exists) */
+var autoTimer=null;
+function hasLiveSource(){return !!(S.s.finnhubKey||S.s.sheetUrl);}
+function startAutoRefresh(){
+  if(autoTimer){clearInterval(autoTimer);autoTimer=null;}
+  var sec=S.s.autoRefreshSec||60;
+  if(S.s.autoRefresh&&hasLiveSource()&&sec>0){
+    autoTimer=setInterval(function(){if(!document.hidden&&!fetching)doFetch();},sec*1000);
+  }
+}
+/* on open: one stale-catchup fetch (>12h), then start the recurring timer */
 function maybeAutoRefresh(){
-  if(!S.s.sheetUrl)return;
-  var age=S.s.lastUpdate?Date.now()-new Date(S.s.lastUpdate).getTime():Infinity;
-  if(age>12*3600*1000)doFetch();
+  if(hasLiveSource()){
+    var age=S.s.lastUpdate?Date.now()-new Date(S.s.lastUpdate).getTime():Infinity;
+    if(age>12*3600*1000)doFetch();
+  }
+  startAutoRefresh();
 }
 
 /* ============================ PER-HOLDING DETAIL ============================ */
@@ -1760,6 +1833,7 @@ function openHolding(id){
   var html='<div class="hd-head"><div class="hd-av">'+(h.ticker||'').slice(0,2)+'</div>'
     +'<div style="flex:1"><div style="font-size:18px;font-weight:600">'+h.ticker+'</div><div style="font-size:12px;color:var(--t3)">'+h.name+'</div></div>'
     +'<span class="bdg"><span class="dot d-'+h.market.toLowerCase()+'"></span>'+h.market+'</span>'
+    +(h.manualPrice?'<span class="bdg" style="color:var(--yel);border-color:rgba(245,177,61,.4)">'+t('manual_tag')+'</span>':'')
     +'<button class="btn bg bs bi" onclick="clM(\'hdMod\')" aria-label="close">'+ic('x',true)+'</button></div>';
   html+='<div class="hd-grid">'
     +'<div class="hd-stat"><div class="lb">'+t('th_value')+'</div><div class="vl">'+fmt(h.mv)+'</div></div>'
@@ -1799,6 +1873,7 @@ function dlHfromDetail(id){if(!confirm(t('confirm_del')))return;S.h=S.h.filter(f
 function addH(){
   eid=null;E('hMT').textContent=t('add_position');
   ['h_tk','h_nm','h_ss','h_sh','h_ac','h_tc','h_pr','h_aa','h_ab'].forEach(function(id){E(id).value='';});
+  E('h_mp').checked=false;
   E('h_mk').value='US';E('h_cu').value='USD';E('h_rl').value='satellite';E('h_as').value='equity';opM('hMod');
 }
 function edH(id){
@@ -1807,7 +1882,7 @@ function edH(id){
   E('h_tk').value=h.ticker;E('h_nm').value=h.name;E('h_mk').value=h.market;E('h_cu').value=h.currency;
   E('h_ss').value=h.sheetSymbol||'';E('h_sh').value=h.shares;E('h_ac').value=h.avgCost;
   E('h_tc').value=h.totalCostILS;E('h_pr').value=h.price;
-  E('h_aa').value=h.alertAbove||'';E('h_ab').value=h.alertBelow||'';
+  E('h_aa').value=h.alertAbove||'';E('h_ab').value=h.alertBelow||'';E('h_mp').checked=!!h.manualPrice;
   E('h_rl').value=h.role||'satellite';E('h_as').value=h.assetClass||'equity';opM('hMod');
 }
 function posOrNull(id){var v=parseFloat(E(id).value);return v>0?v:null;}
@@ -1817,7 +1892,7 @@ function savH(){
     shares:parseFloat(E('h_sh').value)||0,avgCost:parseFloat(E('h_ac').value)||0,
     totalCostILS:parseFloat(E('h_tc').value)||0,price:parseFloat(E('h_pr').value)||0,
     role:E('h_rl').value,assetClass:E('h_as').value,
-    alertAbove:posOrNull('h_aa'),alertBelow:posOrNull('h_ab')};
+    alertAbove:posOrNull('h_aa'),alertBelow:posOrNull('h_ab'),manualPrice:E('h_mp').checked};
   if(!d.ticker)return alert(t('enter_ticker'));
   if(eid){for(var i=0;i<S.h.length;i++)if(S.h[i].id===eid){S.h[i]=Object.assign(S.h[i],d);break;}}
   else{d.id=Date.now().toString();S.h.push(d);}
