@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Steadfast — Portfolio Tracker</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='13' font-size='13' fill='%23c9a96a'>%E2%82%AA</text></svg>">
+<title>Etan — Portfolio Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2314151c'/><path d='M11 25 L16 9 L21 25' fill='none' stroke='%23f2f3f5' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/><path d='M13.2 19 L18.8 19' stroke='%23f2f3f5' stroke-width='2.6' stroke-linecap='round'/><circle cx='16' cy='9' r='2.4' fill='%236366f1'/></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -45,9 +45,9 @@ svg.ic.sm{width:15px;height:15px;}
 .side{position:fixed;top:0;inset-inline-start:0;width:var(--sw);height:100vh;background:var(--bg1);
   border-inline-end:1px solid var(--bdr);display:flex;flex-direction:column;z-index:100;}
 .side-brand{padding:20px 18px;border-bottom:1px solid var(--bdr);display:flex;align-items:center;gap:11px;}
-.side-brand .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#d9bc85,#a8854a);
-  display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#161005;flex-shrink:0;}
-.side-brand h1{font-size:15px;font-weight:700;letter-spacing:2px;}
+.side-brand .logo{width:34px;height:34px;flex-shrink:0;}
+.side-brand .logo svg{display:block;width:34px;height:34px;}
+.side-brand h1{font-size:15px;font-weight:700;letter-spacing:3px;}
 .side-brand p{font-size:10.5px;color:var(--t3);letter-spacing:.4px;}
 .side-nav{flex:1;padding:12px 10px;overflow-y:auto;}
 .nb{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:var(--r-sm);cursor:pointer;
@@ -370,11 +370,16 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
 <!-- ============================ SIDEBAR ============================ -->
 <nav class="side">
   <div class="side-brand">
-    <div class="logo">₪</div>
-    <div><h1>STEADFAST</h1><p data-i18n="brand_sub">Portfolio Tracker</p></div>
+    <div class="logo"><svg viewBox="0 0 34 34" aria-label="Etan">
+      <rect width="34" height="34" rx="9" fill="#14151c" stroke="rgba(255,255,255,.08)"/>
+      <path d="M12 25 L17 9.5 L22 25" fill="none" stroke="#f2f3f5" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M14 19 L20 19" stroke="#f2f3f5" stroke-width="2.8" stroke-linecap="round"/>
+      <circle cx="17" cy="9.5" r="2.6" fill="#6366f1"/>
+    </svg></div>
+    <div><h1>ETAN</h1><p data-i18n="brand_sub">Portfolio Tracker</p></div>
   </div>
   <div class="side-nav" id="sideNav"></div>
-  <div class="side-ft">Steadfast · v3</div>
+  <div class="side-ft">Etan · v4</div>
 </nav>
 
 <!-- ============================ BOTTOM NAV (mobile) ============================ -->
