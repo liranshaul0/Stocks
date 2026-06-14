@@ -158,6 +158,14 @@ svg.ic.sm{width:15px;height:15px;}
 .hd-sec{font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:1.2px;margin:16px 0 10px;}
 .clickrow{cursor:pointer;}
 [dir="rtl"] .chev{transform:scaleX(-1);}
+.news-row{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--bdr);
+  text-decoration:none;color:var(--t1);transition:opacity .12s;}
+.news-row:last-child{border-bottom:none;}
+.news-row:hover{opacity:.7;}
+.news-tk{flex-shrink:0;font-family:var(--fm);font-size:10.5px;}
+.news-h{flex:1;font-size:13.5px;line-height:1.45;}
+.news-meta{flex-shrink:0;font-size:11px;color:var(--t3);white-space:nowrap;}
+@media(max-width:560px){.news-row{flex-wrap:wrap;gap:6px}.news-h{flex-basis:100%;order:3}.news-meta{order:2;margin-inline-start:auto}}
 
 /* ============================================================ TABLE */
 .tw{overflow-x:auto;border-radius:var(--r);}
@@ -365,6 +373,8 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
   <symbol id="i-trend" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
   <symbol id="i-split" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M9 6h6a3 3 0 0 1 3 3v0a3 3 0 0 0 3 3"/><path d="M9 18h6a3 3 0 0 0 3-3v0"/></symbol>
   <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
+  <symbol id="i-news" viewBox="0 0 24 24"><path d="M4 4h13a1 1 0 0 1 1 1v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V4z"/><path d="M18 8h2a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2"/><line x1="7" y1="8" x2="14" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></symbol>
 </svg>
 
 <!-- ============================ SIDEBAR ============================ -->
@@ -490,6 +500,18 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
       </div>
       <div id="jStats"></div>
       <div id="jL"></div>
+    </div>
+
+    <!-- ============================ INTEL ============================ -->
+    <div id="pg-intel" class="pg">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+        <div class="st" style="margin:0" data-i18n="nav_intel">Intel</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="intelUpdated" style="font-size:11px;color:var(--t3)"></span>
+          <button class="btn bg bs" id="intelRefreshBtn" onclick="doIntelRefresh()"><svg class="ic sm"><use href="#i-refresh"/></svg><span data-i18n="refresh_intel">Refresh intel</span></button>
+        </div>
+      </div>
+      <div id="intelBody"></div>
     </div>
 
     <!-- ============================ AI EXPORT ============================ -->
@@ -696,8 +718,9 @@ function load(){
     st={h:JSON.parse(localStorage.getItem('sf2_h'))||clone(DEF),
         j:JSON.parse(localStorage.getItem('sf2_j'))||[],
         s:JSON.parse(localStorage.getItem('sf2_s'))||clone(DSETT),
-        hist:JSON.parse(localStorage.getItem('sf2_hist'))||[]};
-  }catch(e){st={h:clone(DEF),j:[],s:clone(DSETT),hist:[]};}
+        hist:JSON.parse(localStorage.getItem('sf2_hist'))||[],
+        intel:JSON.parse(localStorage.getItem('sf2_intel'))||{}};
+  }catch(e){st={h:clone(DEF),j:[],s:clone(DSETT),hist:[],intel:{}};}
   for(var k in DSETT){if(st.s[k]===undefined)st.s[k]=DSETT[k];}
   if(!st.s.lang)st.s.lang='he';
   /* clear known-stale defaults shipped with v1 (foreign sheet + baked-in key) */
@@ -710,6 +733,7 @@ function sav(){
   localStorage.setItem('sf2_j',JSON.stringify(S.j));
   localStorage.setItem('sf2_s',JSON.stringify(S.s));
   localStorage.setItem('sf2_hist',JSON.stringify(S.hist));
+  if(S.intel)localStorage.setItem('sf2_intel',JSON.stringify(S.intel));
 }
 var S=load(), eid=null;
 
@@ -819,7 +843,14 @@ var I18N={
     diversification:'Diversification',div_well:'Well diversified',div_mod:'Moderately concentrated',div_high:'Highly concentrated',
     holding_entries:'Journal entries for {t}',no_holding_entries:'No journal entries for this holding yet.',
     weight_lbl:'Weight',mv_up:'Gainers',mv_down:'Decliners',view_detail:'Details',edit:'Edit',del:'Delete',
-    manual_price:'Manual price — not fetched from the sheet',manual_tag:'Manual'
+    manual_price:'Manual price — not fetched from the sheet',manual_tag:'Manual',
+    nav_intel:'Intel',earnings_ahead:'Earnings ahead',analyst_consensus:'Analyst consensus',
+    news_feed:'News',refresh_intel:'Refresh intel',no_intel_key:'Add your Finnhub key in Settings to get news, earnings and analyst ratings for your US holdings.',
+    no_intel_data:'No intel yet — press Refresh.',no_earnings:'No upcoming earnings for your US holdings.',
+    no_news:'No recent news.',reports_in:'reports in {d}d',reports_today:'reports today',
+    consensus_buy:'Buy',consensus_hold:'Hold',consensus_sell:'Sell',
+    m_ago:'m ago',h_ago:'h ago',d_ago:'d ago',intel_us_only:'Live intel is available for US holdings only.',
+    a_earnings:'{t} reports earnings in {d} days',a_earnings_today:'{t} reports earnings today'
   },
   he:{
     brand_sub:'מעקב תיק',
@@ -925,7 +956,14 @@ var I18N={
     diversification:'פיזור',div_well:'מפוזר היטב',div_mod:'ריכוזיות בינונית',div_high:'ריכוזי מאוד',
     holding_entries:'רשומות יומן עבור {t}',no_holding_entries:'אין עדיין רשומות יומן לאחזקה הזו.',
     weight_lbl:'משקל',mv_up:'עולים',mv_down:'יורדים',view_detail:'פירוט',edit:'עריכה',del:'מחיקה',
-    manual_price:'מחיר ידני — לא נמשך מהגיליון',manual_tag:'ידני'
+    manual_price:'מחיר ידני — לא נמשך מהגיליון',manual_tag:'ידני',
+    nav_intel:'אינטל',earnings_ahead:'דיווחי רווחים קרובים',analyst_consensus:'קונצנזוס אנליסטים',
+    news_feed:'חדשות',refresh_intel:'רענן אינטל',no_intel_key:'הוסף מפתח Finnhub בהגדרות כדי לקבל חדשות, דיווחי רווחים ודירוגי אנליסטים לאחזקות ה-US שלך.',
+    no_intel_data:'אין עדיין אינטל — לחץ רענן.',no_earnings:'אין דיווחי רווחים קרובים לאחזקות ה-US שלך.',
+    no_news:'אין חדשות אחרונות.',reports_in:'מדווחת בעוד {d} ימ׳',reports_today:'מדווחת היום',
+    consensus_buy:'קנייה',consensus_hold:'החזקה',consensus_sell:'מכירה',
+    m_ago:' דק׳',h_ago:' שע׳',d_ago:' ימ׳',intel_us_only:'אינטל חי זמין לאחזקות US בלבד.',
+    a_earnings:'{t} מדווחת רווחים בעוד {d} ימים',a_earnings_today:'{t} מדווחת רווחים היום'
   }
 };
 function t(key,vars){
@@ -1008,7 +1046,8 @@ function animateValue(el,target){
 /* ============================ 5. NAV ============================ */
 var NAV=[
   {p:'dashboard',i:'grid'},{p:'model',i:'target'},{p:'holdings',i:'briefcase'},
-  {p:'journal',i:'book'},{p:'perplexity',i:'sparkles'},{p:'risk',i:'shield'},{p:'settings',i:'sliders'}
+  {p:'intel',i:'news'},{p:'journal',i:'book'},{p:'perplexity',i:'sparkles'},
+  {p:'risk',i:'shield'},{p:'settings',i:'sliders'}
 ];
 var PAGES={};
 var activePage='dashboard';
@@ -1233,6 +1272,13 @@ function computeAlerts(p){
     if(ds>30)out.push({c:'i',domain:'journal',m:t('a_staljournal',{d:ds})});}
   if(s.lastUpdate){var lu=Math.floor((Date.now()-new Date(s.lastUpdate).getTime())/864e5);
     if(lu>3)out.push({c:'w',domain:'stale',m:t('a_stalprice',{d:lu})});}
+  /* upcoming earnings for held US tickers (from cached intel) */
+  var held={};for(i=0;i<p.hs.length;i++)held[p.hs[i].ticker]=1;
+  var earn=(S.intel&&S.intel.earnings)||[];
+  for(i=0;i<earn.length;i++){if(!held[earn[i].sym])continue;
+    var du=daysUntil(earn[i].date);
+    if(du<0||du>7)continue;
+    out.push({c:'i',domain:'earnings',m:du<=0?t('a_earnings_today',{t:earn[i].sym}):t('a_earnings',{t:earn[i].sym,d:du})});}
   return out;
 }
 function alertsIn(list,domains){return list.filter(function(a){return domains.indexOf(a.domain)>=0;});}
@@ -1857,6 +1903,115 @@ function maybeAutoRefresh(){
   startAutoRefresh();
 }
 
+/* ============================ LIVE INTEL (Finnhub, US holdings) ============================ */
+var FH='https://finnhub.io/api/v1/';
+function fhGet(path){return fetch(FH+path+'&token='+encodeURIComponent(S.s.finnhubKey)).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+var intelFetching=false;
+async function fetchIntel(){
+  if(!S.s.finnhubKey)return false;
+  var us=S.h.filter(function(h){return h.market==='US';}),i;
+  var toS=new Date().toISOString().slice(0,10);
+  var fromS=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
+  var earnTo=new Date(Date.now()+30*864e5).toISOString().slice(0,10);
+  var newsRes=await Promise.all(us.map(function(h){return fhGet('company-news?symbol='+encodeURIComponent(h.ticker)+'&from='+fromS+'&to='+toS);}));
+  var recRes=await Promise.all(us.map(function(h){return fhGet('stock/recommendation?symbol='+encodeURIComponent(h.ticker));}));
+  var earnJ=await fhGet('calendar/earnings?from='+toS+'&to='+earnTo);
+  var news={},recs={},tick={};
+  for(i=0;i<us.length;i++){var tk=us[i].ticker;tick[tk]=1;
+    news[tk]=(newsRes[i]||[]).filter(function(n){return n.headline&&n.url;}).slice(0,6)
+      .map(function(n){return {t:n.datetime,h:n.headline,s:n.source,u:n.url};});
+    var r0=(recRes[i]||[])[0];
+    if(r0)recs[tk]={sb:r0.strongBuy||0,b:r0.buy||0,ho:r0.hold||0,se:r0.sell||0,ss:r0.strongSell||0,p:r0.period};
+  }
+  var ec=(earnJ&&earnJ.earningsCalendar)||[];
+  var earnings=ec.filter(function(e){return tick[e.symbol]&&e.date>=toS;})
+    .sort(function(a,b){return a.date<b.date?-1:1;})
+    .map(function(e){return {sym:e.symbol,date:e.date,hour:e.hour,eps:e.epsEstimate};});
+  S.intel={fetchedAt:new Date().toISOString(),news:news,recs:recs,earnings:earnings};
+  sav();return true;
+}
+async function doIntelRefresh(){
+  if(intelFetching||!S.s.finnhubKey)return;
+  intelFetching=true;
+  var btn=E('intelRefreshBtn');
+  if(btn){btn.innerHTML='<span class="spin"></span> '+t('refreshing');btn.disabled=true;}
+  try{await fetchIntel();}catch(e){console.error(e);}
+  intelFetching=false;
+  if(btn){btn.disabled=false;btn.innerHTML=ic('refresh',true)+'<span data-i18n="refresh_intel">'+t('refresh_intel')+'</span>';}
+  renderIntel();
+}
+/* days until a YYYY-MM-DD date (0 = today) */
+function daysUntil(d){return Math.round((new Date(d+'T00:00:00').getTime()-new Date(new Date().toISOString().slice(0,10)+'T00:00:00').getTime())/864e5);}
+/* analyst consensus from a recs object → {bull,bear,hold,total,label,cls} */
+function consensus(r){
+  var bull=r.sb+r.b,bear=r.se+r.ss,total=bull+bear+r.ho;
+  var label,cls;
+  if(bull>=bear&&bull>=r.ho){label=t('consensus_buy');cls='pos';}
+  else if(bear>bull&&bear>=r.ho){label=t('consensus_sell');cls='neg';}
+  else{label=t('consensus_hold');cls='';}
+  return {bull:bull,bear:bear,hold:r.ho,total:total||1,label:label,cls:cls};
+}
+function consensusBar(r){
+  var c=consensus(r);
+  return '<div class="split-bar" style="height:10px">'
+    +'<i style="width:'+(c.bull/c.total*100).toFixed(1)+'%;background:var(--grn)"></i>'
+    +'<i style="width:'+(c.hold/c.total*100).toFixed(1)+'%;background:var(--yel)"></i>'
+    +'<i style="width:'+(c.bear/c.total*100).toFixed(1)+'%;background:var(--red)"></i></div>';
+}
+function relTime(unixSec){
+  var diff=Date.now()/1000-unixSec;
+  if(diff<3600)return Math.max(1,Math.round(diff/60))+t('m_ago');
+  if(diff<86400)return Math.round(diff/3600)+t('h_ago');
+  return Math.round(diff/86400)+t('d_ago');
+}
+/* external content (news headlines/urls) must be escaped before going into innerHTML */
+function escHtml(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+function safeUrl(u){u=String(u||'');return /^https?:\/\//i.test(u)?u.replace(/"/g,'%22'):'#';}
+function openHoldingByTicker(tk){for(var i=0;i<S.h.length;i++)if(S.h[i].ticker===tk){openHolding(S.h[i].id);return;}}
+
+function rIntel(){
+  if(!S.s.finnhubKey){
+    E('intelUpdated').textContent='';
+    E('intelBody').innerHTML='<div class="card"><div class="empty">'+ic('news')+'<p>'+t('no_intel_key')+'</p></div></div>';
+    return;
+  }
+  var age=S.intel&&S.intel.fetchedAt?Date.now()-new Date(S.intel.fetchedAt).getTime():Infinity;
+  if(age>3*3600*1000&&!intelFetching)doIntelRefresh();
+  renderIntel();
+}
+function renderIntel(){
+  var intel=S.intel||{},i;
+  E('intelUpdated').textContent=intel.fetchedAt?t('updated_at')+': '+new Date(intel.fetchedAt).toLocaleString(loc()):'';
+  if(!intel.fetchedAt){
+    E('intelBody').innerHTML='<div class="card"><div class="empty">'+(intelFetching?'<span class="spin"></span><p style="margin-top:10px">'+t('refreshing')+'</p>':ic('news')+'<p>'+t('no_intel_data')+'</p>')+'</div></div>';
+    return;
+  }
+  var html='';
+  /* EARNINGS AHEAD */
+  var earn=intel.earnings||[];
+  html+='<div class="card"><div class="ct"><svg class="ic sm" style="color:var(--d-teal)"><use href="#i-calendar"/></svg><span>'+t('earnings_ahead')+'</span></div>';
+  if(!earn.length)html+='<div class="empty" style="padding:14px">'+t('no_earnings')+'</div>';
+  else for(i=0;i<earn.length;i++){var e=earn[i],du=daysUntil(e.date);
+    html+='<div class="mr clickrow" onclick="openHoldingByTicker(\''+e.sym+'\')"><div style="display:flex;align-items:center;gap:9px">'+av(e.sym)+'<span class="tk">'+e.sym+'</span> <span style="color:var(--t3);font-size:12px">'+(du<=0?t('reports_today'):t('reports_in',{d:du}))+'</span></div><div class="mn" style="font-size:12px;color:var(--t2)">'+(e.eps!=null?'est EPS '+(+e.eps).toFixed(2):'')+'</div></div>';}
+  html+='</div>';
+  /* ANALYST CONSENSUS */
+  html+='<div class="card"><div class="ct"><svg class="ic sm" style="color:var(--d-indigo)"><use href="#i-target"/></svg><span>'+t('analyst_consensus')+'</span></div>';
+  var rk=Object.keys(intel.recs||{}).sort();
+  if(!rk.length)html+='<div class="empty" style="padding:14px">'+t('no_intel_data')+'</div>';
+  else for(i=0;i<rk.length;i++){var tk=rk[i],r=intel.recs[tk],c=consensus(r);
+    html+='<div style="margin-bottom:14px"><div class="mr clickrow" style="border:none;padding:4px 0" onclick="openHoldingByTicker(\''+tk+'\')"><div style="display:flex;align-items:center;gap:9px">'+av(tk)+'<span class="tk">'+tk+'</span></div><span class="mn '+c.cls+'" style="font-size:12px;font-weight:600">'+c.label+' <span style="color:var(--t3)">('+c.bull+'/'+c.hold+'/'+c.bear+')</span></span></div>'+consensusBar(r)+'</div>';}
+  html+='</div>';
+  /* NEWS FEED */
+  var all=[];for(var tk2 in (intel.news||{}))(intel.news[tk2]||[]).forEach(function(n){all.push({tk:tk2,n:n});});
+  all.sort(function(a,b){return b.n.t-a.n.t;});
+  html+='<div class="card"><div class="ct"><svg class="ic sm" style="color:var(--d-sky)"><use href="#i-news"/></svg><span>'+t('news_feed')+'</span></div>';
+  if(!all.length)html+='<div class="empty" style="padding:14px">'+t('no_news')+'</div>';
+  else for(i=0;i<Math.min(40,all.length);i++){var it=all[i];
+    html+='<a href="'+safeUrl(it.n.u)+'" target="_blank" rel="noopener" class="news-row"><span class="bdg news-tk">'+it.tk+'</span><span class="news-h">'+escHtml(it.n.h)+'</span><span class="news-meta">'+escHtml(it.n.s)+' · '+relTime(it.n.t)+'</span></a>';}
+  html+='</div>';
+  E('intelBody').innerHTML=html;
+}
+
 /* ============================ PER-HOLDING DETAIL ============================ */
 function openHolding(id){
   var p=cP(),h=null,i;
@@ -1888,6 +2043,22 @@ function openHolding(id){
     var posPct=Math.min(Math.max((h.price-h.lo52)/(h.hi52-h.lo52),0),1)*100;
     html+='<div class="hd-sec">'+t('week52')+'</div><div class="thermo"><div class="thermo-track"><div class="thermo-mark" style="inset-inline-start:calc('+posPct.toFixed(1)+'% - 1.5px)"></div></div>'
       +'<div class="thermo-lbls"><span>'+fPr(h.lo52,h.currency)+'</span><span>'+fPr(h.price,h.currency)+'</span><span>'+fPr(h.hi52,h.currency)+'</span></div></div>';
+  }
+  /* live intel (US only, from cache) */
+  if(h.market!=='US'){
+    html+='<div class="hd-sec">'+t('nav_intel')+'</div><div class="empty" style="padding:10px;text-align:start">'+t('intel_us_only')+'</div>';
+  }else{
+    var intel=S.intel||{},rec=(intel.recs||{})[h.ticker],hnews=((intel.news||{})[h.ticker])||[],hearn=null;
+    (intel.earnings||[]).forEach(function(e){if(e.sym===h.ticker&&!hearn)hearn=e;});
+    if(rec||hnews.length||hearn){
+      html+='<div class="hd-sec">'+t('nav_intel')+'</div>';
+      if(hearn){var edu=daysUntil(hearn.date);
+        html+='<div class="mr" style="border:none;padding:3px 0"><span style="color:var(--t3)">'+t('earnings_ahead')+'</span><span class="mn" style="font-size:12px">'+(edu<=0?t('reports_today'):t('reports_in',{d:edu}))+'</span></div>';}
+      if(rec){var cc=consensus(rec);
+        html+='<div class="mr" style="border:none;padding:3px 0"><span style="color:var(--t3)">'+t('analyst_consensus')+'</span><span class="mn '+cc.cls+'" style="font-size:12px;font-weight:600">'+cc.label+' ('+cc.bull+'/'+cc.hold+'/'+cc.bear+')</span></div>'+consensusBar(rec);}
+      for(var nn=0;nn<Math.min(3,hnews.length);nn++){var nw=hnews[nn];
+        html+='<a href="'+safeUrl(nw.u)+'" target="_blank" rel="noopener" class="news-row" style="padding:8px 0"><span class="news-h" style="font-size:12.5px">'+escHtml(nw.h)+'</span><span class="news-meta">'+relTime(nw.t)+'</span></a>';}
+    }
   }
   /* linked journal entries */
   var je=S.j.filter(function(j){return j.ticker===h.ticker;});
@@ -2053,7 +2224,7 @@ async function checkSyncHash(){
 }
 
 /* ============================ 12. INIT ============================ */
-PAGES={dashboard:rD,model:rM,holdings:rH,journal:rJ,perplexity:rPerp,settings:rSe,risk:rRisk};
+PAGES={dashboard:rD,model:rM,holdings:rH,intel:rIntel,journal:rJ,perplexity:rPerp,settings:rSe,risk:rRisk};
 buildNav();
 applyI18n();
 E('histBox').addEventListener('mousemove',histMove);
