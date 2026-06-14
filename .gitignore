@@ -2,3 +2,5 @@
 serve.ps1
 # unrelated local project
 _amirnet_preview/
+# internal design specs — kept local, not on the public site
+docs/

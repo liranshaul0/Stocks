@@ -588,6 +588,18 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
         </div>
         <button class="btn bp" onclick="savS()" data-i18n="save_settings">Save Settings</button>
       </div>
+
+      <div class="card" style="max-width:760px">
+        <div class="ct" data-i18n="sync_title">Sync to another device</div>
+        <p style="font-size:13px;color:var(--t2);margin-bottom:12px" data-i18n="sync_intro">Move your full setup (API key, holdings, settings) to your phone — one time. On this device press Copy, send the code to your phone (WhatsApp/email), and paste it there. Or scan the QR with your phone camera.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <button class="btn bp bs" id="syncCopyBtn" onclick="copySyncCode()"><svg class="ic sm"><use href="#i-copy"/></svg><span data-i18n="copy_code">Copy sync code</span></button>
+        </div>
+        <div class="al al-w" style="margin-bottom:14px"><svg class="ic sm"><use href="#i-alert"/></svg><span data-i18n="sync_warning">The code contains your API key — treat it like a password. Don't post it publicly.</span></div>
+        <div id="syncQR" style="margin-bottom:14px"></div>
+        <div class="fi"><label class="fl" data-i18n="paste_code">Paste a sync code from your other device</label><textarea id="s_synccode" dir="ltr" style="min-height:70px;font-family:var(--fm);font-size:12px"></textarea></div>
+        <button class="btn bg" onclick="applySyncCode()"><svg class="ic sm"><use href="#i-upload"/></svg><span data-i18n="apply_code">Apply code to this device</span></button>
+      </div>
     </div>
   </div>
 </div>
@@ -740,6 +752,13 @@ var I18N={
     finnhub_help:'Free real-time US prices. Get a key at finnhub.io (free, ~10s signup) and paste it here. US holdings update from Finnhub; TASE & Europe keep using the sheet.',
     auto_refresh:'Auto-refresh while open',auto_refresh_help:'Re-fetch prices automatically every',seconds:'seconds',
     live_on:'Live',auto_off:'Off',
+    sync_title:'Sync to another device',
+    sync_intro:'Move your full setup (API key, holdings, settings) to your phone — one time. On this device press Copy, send the code to your phone (WhatsApp/email), and paste it there. Or scan the QR with your phone camera.',
+    copy_code:'Copy sync code',copied_code:'Code copied',paste_code:'Paste a sync code from your other device',
+    apply_code:'Apply code to this device',scan_qr:'Or scan with your phone',
+    qr_too_big:'Too large to scan — use the copy code instead.',
+    sync_warning:'The code contains your API key — treat it like a password. Don’t post it publicly.',
+    sync_imported:'Synced',sync_confirm:'Replace this device’s data with the synced setup?',sync_failed:'Could not read the sync code.',
     cash:'Cash (₪)',target_model:'Target Model',
     t_stocks:'Stocks %',t_bonds:'Bonds %',t_cash:'Cash %',t_israel:'Israel %',t_global:'Global %',
     t_maxsingle:'Max Single %',t_maxus:'Max US %',t_mincore:'Min Core %',t_maxcrypto:'Max Crypto %',
@@ -839,6 +858,13 @@ var I18N={
     finnhub_help:'מחירי US בזמן-אמת בחינם. צור מפתח ב-finnhub.io (חינם, ~10 שניות) והדבק כאן. אחזקות US יתעדכנו מ-Finnhub; TASE ואירופה ימשיכו דרך הגיליון.',
     auto_refresh:'רענון אוטומטי כשהאתר פתוח',auto_refresh_help:'משוך מחירים אוטומטית כל',seconds:'שניות',
     live_on:'לייב',auto_off:'כבוי',
+    sync_title:'סנכרון למכשיר אחר',
+    sync_intro:'העבר את כל ההגדרות (מפתח API, אחזקות, הגדרות) לטלפון — פעם אחת. במכשיר הזה לחץ העתק, שלח את הקוד לטלפון (וואטסאפ/מייל) והדבק שם. או סרוק את ה-QR עם מצלמת הטלפון.',
+    copy_code:'העתק קוד סנכרון',copied_code:'הקוד הועתק',paste_code:'הדבק קוד סנכרון מהמכשיר השני',
+    apply_code:'החל את הקוד על המכשיר הזה',scan_qr:'או סרוק עם הטלפון',
+    qr_too_big:'גדול מדי לסריקה — השתמש בקוד ההעתקה במקום.',
+    sync_warning:'הקוד מכיל את מפתח ה-API — התייחס אליו כמו לסיסמה. אל תפרסם אותו בפומבי.',
+    sync_imported:'סונכרן',sync_confirm:'להחליף את הנתונים במכשיר הזה בהגדרות המסונכרנות?',sync_failed:'לא ניתן לקרוא את קוד הסנכרון.',
     cash:'מזומן (₪)',target_model:'מודל יעד',
     t_stocks:'מניות %',t_bonds:'אג"ח %',t_cash:'מזומן %',t_israel:'ישראל %',t_global:'גלובלי %',
     t_maxsingle:'מקס\' בודד %',t_maxus:'מקס\' US %',t_mincore:'מינ\' Core %',t_maxcrypto:'מקס\' קריפטו %',
@@ -1475,6 +1501,7 @@ function rSe(){
   E('s_tI').value=s.targetIL;E('s_tG').value=s.targetGlobal;E('s_mS').value=s.maxSingle;
   E('s_mU').value=s.maxUS;E('s_mC').value=s.minCore;E('s_mX').value=s.maxCrypto;
   E('formulaBox').textContent=buildFormulas();
+  syncEncode().then(renderSyncQR).catch(function(){});
 }
 /* read a numeric input; keep `fb` when blank/invalid — 0 is a valid value */
 function numOr(id,fb){var v=parseFloat(E(id).value);return isNaN(v)?fb:v;}
@@ -1925,7 +1952,7 @@ function dlJ(id){if(!confirm(t('confirm_del')))return;S.j=S.j.filter(function(j)
 /* ============================ 11. IMPORT / EXPORT ============================ */
 function expJ(){
   var b=new Blob([JSON.stringify({h:S.h,j:S.j,s:S.s,hist:S.hist},null,2)],{type:'application/json'});
-  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='steadfast-backup.json';a.click();
+  var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='etan-backup.json';a.click();
 }
 function impJ(ev){
   var f=ev.target.files[0];if(!f)return;var r=new FileReader();
@@ -1937,6 +1964,94 @@ function impJ(ev){
 }
 function resetAll(){if(confirm(t('confirm_reset'))){localStorage.clear();location.reload();}}
 
+/* ============================ 11b. DEVICE SYNC (one-time transfer) ============================ */
+function b64urlEncode(bytes){
+  var bin='';for(var i=0;i<bytes.length;i++)bin+=String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function b64urlDecode(str){
+  str=String(str).replace(/-/g,'+').replace(/_/g,'/');while(str.length%4)str+='=';
+  var bin=atob(str),bytes=new Uint8Array(bin.length);
+  for(var i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
+  return bytes;
+}
+async function gzipBytes(bytes){
+  if(typeof CompressionStream==='undefined')return null;
+  var cs=new CompressionStream('gzip'),w=cs.writable.getWriter();w.write(bytes);w.close();
+  return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+}
+async function gunzipBytes(bytes){
+  var ds=new DecompressionStream('gzip'),w=ds.writable.getWriter();w.write(bytes);w.close();
+  return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+}
+/* payload = holdings + journal + settings (history excluded — rebuilds on the new device) */
+async function syncEncode(){
+  var bytes=new TextEncoder().encode(JSON.stringify({h:S.h,j:S.j,s:S.s}));
+  var gz=await gzipBytes(bytes);
+  return gz?('g:'+b64urlEncode(gz)):('u:'+b64urlEncode(bytes));
+}
+async function syncDecode(code){
+  code=String(code||'').trim();
+  var tag=code.slice(0,2),bytes=b64urlDecode(code.slice(2));
+  if(tag==='g:')bytes=await gunzipBytes(bytes);
+  else if(tag!=='u:')throw new Error('bad tag');
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+function importSyncObject(d){
+  if(d.h)S.h=d.h.map(function(x){x.role=x.role||'satellite';x.assetClass=x.assetClass||'equity';return x;});
+  if(d.j)S.j=d.j;if(d.s)S.s=Object.assign(S.s,d.s);
+  sav();
+}
+async function copySyncCode(){
+  var btn=E('syncCopyBtn');
+  try{
+    var code=await syncEncode();
+    copyText(code,function(){if(btn){btn.innerHTML=ic('check',true)+'<span>'+t('copied_code')+'</span>';
+      setTimeout(function(){btn.innerHTML=ic('copy',true)+'<span data-i18n="copy_code">'+t('copy_code')+'</span>';},2000);}});
+    renderSyncQR(code);
+  }catch(e){console.error(e);alert(t('error'));}
+}
+async function applySyncCode(){
+  var code=(E('s_synccode').value||'').trim();if(!code)return;
+  if(!confirm(t('sync_confirm')))return;
+  try{importSyncObject(await syncDecode(code));alert(t('sync_imported'));location.reload();}
+  catch(e){console.error(e);alert(t('sync_failed'));}
+}
+/* lazy-load a client-side QR generator (encoding stays in-browser; payload never leaves the device) */
+var qrLibP=null;
+function loadQrLib(){
+  if(typeof qrcode!=='undefined')return Promise.resolve(true);
+  if(qrLibP)return qrLibP;
+  qrLibP=new Promise(function(res){
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js';
+    s.onload=function(){res(true);};s.onerror=function(){res(false);};
+    document.head.appendChild(s);
+  });
+  return qrLibP;
+}
+async function renderSyncQR(code){
+  var box=E('syncQR');if(!box)return;
+  var url=location.origin+location.pathname+'#sync='+code;
+  if(url.length>2200){box.innerHTML='<div class="empty" style="padding:14px">'+t('qr_too_big')+'</div>';return;}
+  if(!await loadQrLib()){box.innerHTML='<div class="empty" style="padding:14px">'+t('qr_too_big')+'</div>';return;}
+  try{
+    var qr=qrcode(0,'L');qr.addData(url);qr.make();
+    box.innerHTML='<div style="font-size:12px;color:var(--t3);margin-bottom:8px">'+t('scan_qr')+'</div>'
+      +'<div style="display:inline-block;background:#fff;padding:12px;border-radius:10px">'+qr.createSvgTag({cellSize:4,margin:0})+'</div>';
+  }catch(e){box.innerHTML='<div class="empty" style="padding:14px">'+t('qr_too_big')+'</div>';}
+}
+/* auto-import when opened via a #sync= link (e.g. after scanning the QR) */
+async function checkSyncHash(){
+  var h=location.hash||'';
+  if(h.indexOf('#sync=')!==0)return;
+  var code=decodeURIComponent(h.slice(6));
+  history.replaceState(null,'',location.pathname+location.search);
+  if(!confirm(t('sync_confirm')))return;
+  try{importSyncObject(await syncDecode(code));location.reload();}
+  catch(e){console.error(e);alert(t('sync_failed'));}
+}
+
 /* ============================ 12. INIT ============================ */
 PAGES={dashboard:rD,model:rM,holdings:rH,journal:rJ,perplexity:rPerp,settings:rSe,risk:rRisk};
 buildNav();
@@ -1944,6 +2059,7 @@ applyI18n();
 E('histBox').addEventListener('mousemove',histMove);
 E('histBox').addEventListener('mouseleave',histLeave);
 rD();
+checkSyncHash();
 maybeAutoRefresh();
 </script>
 </body>
