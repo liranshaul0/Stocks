@@ -1621,7 +1621,7 @@ function savS(){
   s.targetCash=numOr('s_tC',s.targetCash);s.targetIL=numOr('s_tI',s.targetIL);
   s.targetGlobal=numOr('s_tG',s.targetGlobal);s.maxSingle=numOr('s_mS',s.maxSingle);
   s.maxUS=numOr('s_mU',s.maxUS);s.minCore=numOr('s_mC',s.minCore);
-  s.maxCrypto=numOr('s_mX',s.maxCrypto);sav();renderHeader();startAutoRefresh();startStream();alert(t('saved'));rD();
+  s.maxCrypto=numOr('s_mX',s.maxCrypto);sav();renderHeader();startAutoRefresh();wsFails=0;startStream();alert(t('saved'));rD();
 }
 
 /* GOOGLEFINANCE formula block from current holdings + FX + benchmarks */
@@ -1995,7 +1995,7 @@ function maybeAutoRefresh(){
 }
 
 /* ============================ REAL-TIME STREAM (Finnhub WebSocket, US) ============================ */
-var ws=null,wsReconnect=null,wsBuf={},wsRenderQ=false,streamLive=false;
+var ws=null,wsReconnect=null,wsBuf={},wsRenderQ=false,streamLive=false,wsFails=0;
 function streamSymbols(){return S.h.filter(function(h){return h.market==='US'&&!h.manualPrice;}).map(function(h){return h.ticker;});}
 function setStreaming(on){
   if(streamLive===on)return;
@@ -2009,8 +2009,8 @@ function startStream(){
     ws=new WebSocket('wss://ws.finnhub.io?token='+encodeURIComponent(S.s.finnhubKey));
     ws.onopen=function(){syms.forEach(function(s){try{ws.send(JSON.stringify({type:'subscribe',symbol:s}));}catch(e){}});setStreaming(true);};
     ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data);}catch(e){return;}
-      if(m.type==='trade'&&m.data){for(var i=0;i<m.data.length;i++)if(m.data[i].p>0)wsBuf[m.data[i].s]=m.data[i].p;scheduleStreamRender();}};
-    ws.onclose=function(){setStreaming(false);scheduleReconnect();};
+      if(m.type==='trade'&&m.data){wsFails=0;for(var i=0;i<m.data.length;i++)if(m.data[i].p>0)wsBuf[m.data[i].s]=m.data[i].p;scheduleStreamRender();}};
+    ws.onclose=function(){wsFails++;setStreaming(false);scheduleReconnect();};
     ws.onerror=function(){try{ws.close();}catch(e){}};
   }catch(e){}
 }
@@ -2020,7 +2020,7 @@ function stopStream(){
   setStreaming(false);
 }
 function scheduleReconnect(){
-  if(!(S.s.liveStream&&S.s.finnhubKey)||document.hidden||wsReconnect)return;
+  if(!(S.s.liveStream&&S.s.finnhubKey)||document.hidden||wsReconnect||wsFails>=6)return; /* give up after repeated failures (e.g. bad key) */
   wsReconnect=setTimeout(function(){wsReconnect=null;startStream();},5000);
 }
 /* throttle UI to ~once/sec: apply buffered ticks, refresh only the live numbers (no chart redraw) */
@@ -2045,7 +2045,7 @@ function liveTickUpdate(){
   }else if(activePage==='holdings'){rH();}
 }
 /* pause the socket when the tab is hidden, resume when visible */
-document.addEventListener('visibilitychange',function(){if(document.hidden)stopStream();else startStream();});
+document.addEventListener('visibilitychange',function(){if(document.hidden)stopStream();else{wsFails=0;startStream();}});
 
 /* ============================ LIVE INTEL (Finnhub, US holdings) ============================ */
 var FH='https://finnhub.io/api/v1/';
@@ -2385,7 +2385,9 @@ function realizedPL(){
       while(rem>1e-9&&lots.length){var lot=lots[0],take=Math.min(rem,lot.sh);
         out.push({ticker:tk,date:x.date,shares:take,gain:(perILS-lot.cost)*take,year:(x.date||'').slice(0,4)});
         lot.sh-=take;rem-=take;if(lot.sh<=1e-9)lots.shift();}
-      if(rem>1e-9){var fb=holdingAvgILS(tk);out.push({ticker:tk,date:x.date,shares:rem,gain:(perILS-fb)*rem,year:(x.date||'').slice(0,4)});}
+      if(rem>1e-9){var fb=holdingAvgILS(tk);
+        /* only book a gain when a cost basis is derivable — never treat unknown basis as 0 (would count 100% of proceeds as gain) */
+        if(fb>0)out.push({ticker:tk,date:x.date,shares:rem,gain:(perILS-fb)*rem,year:(x.date||'').slice(0,4)});}
     });
   }
   return out;
