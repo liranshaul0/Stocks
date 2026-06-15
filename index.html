@@ -529,6 +529,7 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
     <!-- ============================ RISK ENGINE ============================ -->
     <div id="pg-risk" class="pg">
       <div class="st" data-i18n="risk_title">Risk Engine & Stress Testing</div>
+      <div class="card"><div class="ct" data-i18n="perf_metrics">Performance Metrics</div><div id="rMetrics"></div></div>
       <div class="card"><div class="ct" data-i18n="contribution">Contribution to Return</div><div id="rContrib"></div></div>
       <div class="g2">
         <div class="card"><div class="ct" data-i18n="pos_conc">Position Concentration</div><div id="rConc"></div></div>
@@ -856,7 +857,11 @@ var I18N={
     no_news:'No recent news.',reports_in:'reports in {d}d',reports_today:'reports today',
     consensus_buy:'Buy',consensus_hold:'Hold',consensus_sell:'Sell',
     m_ago:'m ago',h_ago:'h ago',d_ago:'d ago',intel_us_only:'Live intel is available for US holdings only.',
-    a_earnings:'{t} reports earnings in {d} days',a_earnings_today:'{t} reports earnings today'
+    a_earnings:'{t} reports earnings in {d} days',a_earnings_today:'{t} reports earnings today',
+    perf_metrics:'Performance Metrics',total_return:'Total return',max_drawdown:'Max drawdown',
+    volatility:'Volatility',sharpe:'Sharpe',beta:'Beta vs S&P',
+    metrics_need_data:'Needs at least 8 value snapshots — refresh prices on a few different days.',
+    metrics_note:'From {n} snapshots · annualized, risk-free 4% · approximate (transaction-aware later).'
   },
   he:{
     brand_sub:'מעקב תיק',
@@ -970,7 +975,11 @@ var I18N={
     no_news:'אין חדשות אחרונות.',reports_in:'מדווחת בעוד {d} ימ׳',reports_today:'מדווחת היום',
     consensus_buy:'קנייה',consensus_hold:'החזקה',consensus_sell:'מכירה',
     m_ago:' דק׳',h_ago:' שע׳',d_ago:' ימ׳',intel_us_only:'אינטל חי זמין לאחזקות US בלבד.',
-    a_earnings:'{t} מדווחת רווחים בעוד {d} ימים',a_earnings_today:'{t} מדווחת רווחים היום'
+    a_earnings:'{t} מדווחת רווחים בעוד {d} ימים',a_earnings_today:'{t} מדווחת רווחים היום',
+    perf_metrics:'מדדי ביצוע',total_return:'תשואה כוללת',max_drawdown:'ירידה מקסימלית',
+    volatility:'תנודתיות',sharpe:'Sharpe',beta:'Beta מול S&P',
+    metrics_need_data:'דרושות לפחות 8 נקודות היסטוריה — רענן מחירים בכמה ימים שונים.',
+    metrics_note:'מ-{n} נקודות · שנתי, ריבית חסרת-סיכון 4% · משוערך (יחושב מעסקאות בהמשך).'
   }
 };
 function t(key,vars){
@@ -1631,11 +1640,43 @@ function riskBar(label,pct,color,target){
   return'<div class="risk-row"><span>'+label+'</span><span class="mn" style="font-size:12px">'+pct.toFixed(1)+'%</span></div>'
     +'<div class="risk-bar-wrap">'+tgt+'<div class="risk-bar-fill" style="width:'+w+'%;background:'+color+'">'+(w>10?pct.toFixed(1)+'%':'')+'</div></div>';
 }
+/* performance & risk metrics from the value-history series (approximate; cashflow-aware later) */
+function perfMetrics(){
+  var h=S.hist||[],i;
+  var vals=h.filter(function(e){return e.v>0;}).map(function(e){return e.v;});
+  if(vals.length<8)return null;
+  var rp=[];for(i=1;i<vals.length;i++)rp.push(vals[i]/vals[i-1]-1);
+  var totalRet=vals[vals.length-1]/vals[0]-1;
+  var peak=vals[0],mdd=0;for(i=0;i<vals.length;i++){if(vals[i]>peak)peak=vals[i];var dd=(vals[i]-peak)/peak;if(dd<mdd)mdd=dd;}
+  function mean(a){var s=0,k;for(k=0;k<a.length;k++)s+=a[k];return a.length?s/a.length:0;}
+  function std(a){var m=mean(a),s=0,k;for(k=0;k<a.length;k++)s+=(a[k]-m)*(a[k]-m);return Math.sqrt(s/((a.length-1)||1));}
+  var mr=mean(rp),sd=std(rp),vol=sd*Math.sqrt(252),rf=0.04;
+  var sharpe=sd>0?(mr*252-rf)/vol:0;
+  var beta=null,sv=[],pv=[];
+  for(i=0;i<h.length;i++)if(h[i].spy>0&&h[i].v>0){sv.push(h[i].spy);pv.push(h[i].v);}
+  if(sv.length>=8){var rs=[],rq=[];for(i=1;i<sv.length;i++){rs.push(sv[i]/sv[i-1]-1);rq.push(pv[i]/pv[i-1]-1);}
+    var ms=mean(rs),mp=mean(rq),cov=0,vs=0;for(i=0;i<rs.length;i++){cov+=(rq[i]-mp)*(rs[i]-ms);vs+=(rs[i]-ms)*(rs[i]-ms);}
+    if(vs>0)beta=cov/vs;}
+  return {totalRet:totalRet,mdd:mdd,vol:vol,sharpe:sharpe,beta:beta,n:vals.length};
+}
+function metricChip(lbl,val,cls){return '<div class="chip"><div class="lb">'+lbl+'</div><div class="vl '+(cls||'')+'" style="font-size:18px">'+val+'</div></div>';}
+function rMetrics(){
+  var pm=perfMetrics();
+  if(!pm){E('rMetrics').innerHTML='<div class="empty" style="padding:10px">'+t('metrics_need_data')+'</div>';return;}
+  E('rMetrics').innerHTML='<div class="chips" style="margin-bottom:0">'
+    +metricChip(t('total_return'),fP(pm.totalRet),pc(pm.totalRet))
+    +metricChip(t('max_drawdown'),fP(pm.mdd),'neg')
+    +metricChip(t('volatility'),(pm.vol*100).toFixed(1)+'%','')
+    +metricChip(t('sharpe'),pm.sharpe.toFixed(2),pm.sharpe>=1?'pos':pm.sharpe<0?'neg':'')
+    +(pm.beta!=null?metricChip(t('beta'),pm.beta.toFixed(2),''):'')
+    +'</div><p style="font-size:11px;color:var(--t3);margin-top:10px">'+t('metrics_note',{n:pm.n})+'</p>';
+}
 function rRisk(){
   var p=cP(),i;
-  if(!p.hs.length){['rContrib','rConc','rHHI','rMkt','rCur','rAst','rRole','rStress','rAlerts'].forEach(function(id){E(id).innerHTML='<div class="empty"><p>'+t('no_holdings_data')+'</p></div>';});return;}
+  if(!p.hs.length){['rMetrics','rContrib','rConc','rHHI','rMkt','rCur','rAst','rRole','rStress','rAlerts'].forEach(function(id){E(id).innerHTML='<div class="empty"><p>'+t('no_holdings_data')+'</p></div>';});return;}
   var s=S.s,tv=p.tv||1;
   var sorted=p.hs.slice().sort(function(a,b){return b.w-a.w;});
+  rMetrics();
 
   /* contribution to return — biggest contributors and drags */
   var byPL=p.hs.slice().sort(function(a,b){return b.pl-a.pl;});
