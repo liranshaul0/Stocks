@@ -375,6 +375,7 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
   <symbol id="i-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></symbol>
   <symbol id="i-news" viewBox="0 0 24 24"><path d="M4 4h13a1 1 0 0 1 1 1v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2V4z"/><path d="M18 8h2a1 1 0 0 1 1 1v10a2 2 0 0 1-2 2"/><line x1="7" y1="8" x2="14" y2="8"/><line x1="7" y1="12" x2="14" y2="12"/><line x1="7" y1="16" x2="11" y2="16"/></symbol>
   <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></symbol>
+  <symbol id="i-receipt" viewBox="0 0 24 24"><path d="M5 3v18l2-1.5L9 21l2-1.5L13 21l2-1.5L17 21l2-1.5V3l-2 1.5L15 3l-2 1.5L11 3 9 4.5 7 3 5 4.5z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="16" y2="13"/></symbol>
 </svg>
 
 <!-- ============================ SIDEBAR ============================ -->
@@ -512,6 +513,18 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
         </div>
       </div>
       <div id="intelBody"></div>
+    </div>
+
+    <!-- ============================ TAX / REALIZED P/L ============================ -->
+    <div id="pg-tax" class="pg">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap">
+        <div class="st" style="margin:0" data-i18n="nav_tax">Tax & Realized P/L</div>
+        <button class="btn bp bs" onclick="addTx()"><svg class="ic sm"><use href="#i-plus"/></svg><span data-i18n="add_tx">Add transaction</span></button>
+      </div>
+      <div class="chips" id="taxChips"></div>
+      <div class="card"><div class="ct" data-i18n="realized_by_ticker">Realized by ticker (this year)</div><div id="taxByTicker"></div></div>
+      <div class="card"><div class="ct" data-i18n="tx_log">Transactions</div><div id="txList"></div></div>
+      <p style="font-size:11px;color:var(--t3);line-height:1.6" data-i18n="tax_disclaimer">Estimate only — FIFO cost basis, 25% flat, losses offset gains within the year. Not tax advice; foreign-currency cost uses the FX rate at entry time.</p>
     </div>
 
     <!-- ============================ AI EXPORT ============================ -->
@@ -673,6 +686,20 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
   <div style="display:flex;gap:8px;margin-top:8px"><button class="btn bp" onclick="savJ()" data-i18n="save">Save</button><button class="btn bg" onclick="clM('jMod')" data-i18n="cancel">Cancel</button></div>
 </div></div>
 
+<!-- ============================ TRANSACTION MODAL ============================ -->
+<div class="mov" id="txMod" onclick="if(event.target===this)clM('txMod')"><div class="mod">
+  <div class="modt" data-i18n="add_tx">Add transaction</div>
+  <div class="fg">
+    <div class="fi"><label class="fl" data-i18n="action">Action</label><select id="t_ac"><option value="buy" data-i18n="act_buy">Buy</option><option value="sell" data-i18n="act_sell">Sell</option></select></div>
+    <div class="fi"><label class="fl" data-i18n="th_ticker">Ticker</label><input type="text" id="t_tk" dir="ltr" style="text-transform:uppercase"></div>
+    <div class="fi"><label class="fl" data-i18n="date_lbl">Date</label><input type="date" id="t_dt" dir="ltr"></div>
+    <div class="fi"><label class="fl" data-i18n="currency">Currency</label><select id="t_cu"><option value="USD">USD</option><option value="ILS">ILS</option><option value="EUR">EUR</option></select></div>
+    <div class="fi"><label class="fl" data-i18n="th_shares">Shares</label><input type="number" step="0.0001" id="t_sh" dir="ltr"></div>
+    <div class="fi"><label class="fl" data-i18n="th_price">Price (per share)</label><input type="number" step="0.0001" id="t_pr" dir="ltr"></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px"><button class="btn bp" onclick="savTx()" data-i18n="save">Save</button><button class="btn bg" onclick="clM('txMod')" data-i18n="cancel">Cancel</button></div>
+</div></div>
+
 <script>
 "use strict";
 /* ============================================================
@@ -725,8 +752,9 @@ function load(){
         j:JSON.parse(localStorage.getItem('sf2_j'))||[],
         s:JSON.parse(localStorage.getItem('sf2_s'))||clone(DSETT),
         hist:JSON.parse(localStorage.getItem('sf2_hist'))||[],
-        intel:JSON.parse(localStorage.getItem('sf2_intel'))||{}};
-  }catch(e){st={h:clone(DEF),j:[],s:clone(DSETT),hist:[],intel:{}};}
+        intel:JSON.parse(localStorage.getItem('sf2_intel'))||{},
+        tx:JSON.parse(localStorage.getItem('sf2_tx'))||[]};
+  }catch(e){st={h:clone(DEF),j:[],s:clone(DSETT),hist:[],intel:{},tx:[]};}
   for(var k in DSETT){if(st.s[k]===undefined)st.s[k]=DSETT[k];}
   if(!st.s.lang)st.s.lang='he';
   /* clear known-stale defaults shipped with v1 (foreign sheet + baked-in key) */
@@ -740,6 +768,7 @@ function sav(){
   localStorage.setItem('sf2_s',JSON.stringify(S.s));
   localStorage.setItem('sf2_hist',JSON.stringify(S.hist));
   if(S.intel)localStorage.setItem('sf2_intel',JSON.stringify(S.intel));
+  if(S.tx)localStorage.setItem('sf2_tx',JSON.stringify(S.tx));
 }
 var S=load(), eid=null;
 
@@ -861,7 +890,12 @@ var I18N={
     perf_metrics:'Performance Metrics',total_return:'Total return',max_drawdown:'Max drawdown',
     volatility:'Volatility',sharpe:'Sharpe',beta:'Beta vs S&P',
     metrics_need_data:'Needs at least 8 value snapshots — refresh prices on a few different days.',
-    metrics_note:'From {n} snapshots · annualized, risk-free 4% · approximate (transaction-aware later).'
+    metrics_note:'From {n} snapshots · annualized, risk-free 4% · approximate (transaction-aware later).',
+    nav_tax:'Tax',tax_title:'Tax & Realized P/L',add_tx:'Add transaction',realized_by_ticker:'Realized by ticker (this year)',
+    tx_log:'Transactions',date_lbl:'Date',realized_ytd:'Realized (this year)',est_tax:'Estimated tax (25%)',
+    realized_all:'Realized (all-time)',no_tx:'No transactions logged. Add your sells to track realized P/L and tax.',
+    no_realized:'No realized gains or losses this year yet.',
+    tax_disclaimer:'Estimate only — FIFO cost basis, 25% flat, losses offset gains within the year. Not tax advice; foreign-currency cost uses the FX rate at entry time.'
   },
   he:{
     brand_sub:'מעקב תיק',
@@ -979,7 +1013,12 @@ var I18N={
     perf_metrics:'מדדי ביצוע',total_return:'תשואה כוללת',max_drawdown:'ירידה מקסימלית',
     volatility:'תנודתיות',sharpe:'Sharpe',beta:'Beta מול S&P',
     metrics_need_data:'דרושות לפחות 8 נקודות היסטוריה — רענן מחירים בכמה ימים שונים.',
-    metrics_note:'מ-{n} נקודות · שנתי, ריבית חסרת-סיכון 4% · משוערך (יחושב מעסקאות בהמשך).'
+    metrics_note:'מ-{n} נקודות · שנתי, ריבית חסרת-סיכון 4% · משוערך (יחושב מעסקאות בהמשך).',
+    nav_tax:'מס',tax_title:'מס ורווח ממומש',add_tx:'הוסף עסקה',realized_by_ticker:'רווח ממומש לפי נייר (השנה)',
+    tx_log:'עסקאות',date_lbl:'תאריך',realized_ytd:'ממומש (השנה)',est_tax:'הערכת מס (25%)',
+    realized_all:'ממומש (כל הזמן)',no_tx:'לא נרשמו עסקאות. הוסף את המכירות שלך כדי לעקוב אחר רווח ממומש ומס.',
+    no_realized:'אין עדיין רווח/הפסד ממומש השנה.',
+    tax_disclaimer:'הערכה בלבד — בסיס עלות FIFO, 25% אחיד, הפסדים מקזזים רווחים בתוך השנה. לא ייעוץ מס; עלות מט"ח לפי שער ההמרה בזמן הרישום.'
   }
 };
 function t(key,vars){
@@ -1062,7 +1101,7 @@ function animateValue(el,target){
 /* ============================ 5. NAV ============================ */
 var NAV=[
   {p:'dashboard',i:'grid'},{p:'model',i:'target'},{p:'holdings',i:'briefcase'},
-  {p:'intel',i:'news'},{p:'journal',i:'book'},{p:'perplexity',i:'sparkles'},
+  {p:'intel',i:'news'},{p:'tax',i:'receipt'},{p:'journal',i:'book'},{p:'perplexity',i:'sparkles'},
   {p:'risk',i:'shield'},{p:'settings',i:'sliders'}
 ];
 var PAGES={};
@@ -2227,14 +2266,14 @@ function dlJ(id){if(!confirm(t('confirm_del')))return;S.j=S.j.filter(function(j)
 
 /* ============================ 11. IMPORT / EXPORT ============================ */
 function expJ(){
-  var b=new Blob([JSON.stringify({h:S.h,j:S.j,s:S.s,hist:S.hist},null,2)],{type:'application/json'});
+  var b=new Blob([JSON.stringify({h:S.h,j:S.j,s:S.s,hist:S.hist,tx:S.tx},null,2)],{type:'application/json'});
   var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='etan-backup.json';a.click();
 }
 function impJ(ev){
   var f=ev.target.files[0];if(!f)return;var r=new FileReader();
   r.onload=function(e){try{var d=JSON.parse(e.target.result);
     if(d.h)S.h=d.h.map(function(x){x.role=x.role||'satellite';x.assetClass=x.assetClass||'equity';return x;});
-    if(d.j)S.j=d.j;if(d.s)S.s=Object.assign(S.s,d.s);if(d.hist)S.hist=d.hist;
+    if(d.j)S.j=d.j;if(d.s)S.s=Object.assign(S.s,d.s);if(d.hist)S.hist=d.hist;if(d.tx)S.tx=d.tx;
     sav();location.reload();}catch(err){alert(t('invalid_json'));}};
   r.readAsText(f);ev.target.value='';
 }
@@ -2262,7 +2301,7 @@ async function gunzipBytes(bytes){
 }
 /* payload = holdings + journal + settings (history excluded — rebuilds on the new device) */
 async function syncEncode(){
-  var bytes=new TextEncoder().encode(JSON.stringify({h:S.h,j:S.j,s:S.s}));
+  var bytes=new TextEncoder().encode(JSON.stringify({h:S.h,j:S.j,s:S.s,tx:S.tx}));
   var gz=await gzipBytes(bytes);
   return gz?('g:'+b64urlEncode(gz)):('u:'+b64urlEncode(bytes));
 }
@@ -2275,7 +2314,7 @@ async function syncDecode(code){
 }
 function importSyncObject(d){
   if(d.h)S.h=d.h.map(function(x){x.role=x.role||'satellite';x.assetClass=x.assetClass||'equity';return x;});
-  if(d.j)S.j=d.j;if(d.s)S.s=Object.assign(S.s,d.s);
+  if(d.j)S.j=d.j;if(d.s)S.s=Object.assign(S.s,d.s);if(d.tx)S.tx=d.tx;
   sav();
 }
 async function copySyncCode(){
@@ -2328,8 +2367,64 @@ async function checkSyncHash(){
   catch(e){console.error(e);alert(t('sync_failed'));}
 }
 
+/* ============================ 11c. TAX / REALIZED P/L (separate ledger, FIFO) ============================ */
+function fxFor(cu){return cu==='USD'?S.s.usdIls:cu==='EUR'?S.s.eurIls:1;}
+function holdingAvgILS(tk){for(var i=0;i<S.h.length;i++)if(S.h[i].ticker===tk&&S.h[i].shares>0)return S.h[i].totalCostILS/S.h[i].shares;return 0;}
+/* match sells against buy lots FIFO; cost basis in ILS (price × FX at entry). Falls back to
+   the current holding's average ILS cost when buy lots are missing. */
+function realizedPL(){
+  var byTk={},out=[];
+  var txs=S.tx.slice().sort(function(a,b){return (a.date||'')<(b.date||'')?-1:(a.date||'')>(b.date||'')?1:0;});
+  txs.forEach(function(x){(byTk[x.ticker]=byTk[x.ticker]||[]).push(x);});
+  for(var tk in byTk){
+    var lots=[];
+    byTk[tk].forEach(function(x){
+      var perILS=(+x.price||0)*(x.fx||fxFor(x.currency)),sh=(+x.shares||0);
+      if(x.action==='buy'){lots.push({sh:sh,cost:perILS});return;}
+      var rem=sh;
+      while(rem>1e-9&&lots.length){var lot=lots[0],take=Math.min(rem,lot.sh);
+        out.push({ticker:tk,date:x.date,shares:take,gain:(perILS-lot.cost)*take,year:(x.date||'').slice(0,4)});
+        lot.sh-=take;rem-=take;if(lot.sh<=1e-9)lots.shift();}
+      if(rem>1e-9){var fb=holdingAvgILS(tk);out.push({ticker:tk,date:x.date,shares:rem,gain:(perILS-fb)*rem,year:(x.date||'').slice(0,4)});}
+    });
+  }
+  return out;
+}
+function taxSummary(){
+  var rl=realizedPL(),yr=String(new Date().getFullYear()),net=0,allNet=0,byTk={};
+  rl.forEach(function(r){allNet+=r.gain;if(r.year===yr){net+=r.gain;byTk[r.ticker]=(byTk[r.ticker]||0)+r.gain;}});
+  return {net:net,tax:Math.max(0,net)*0.25,allNet:allNet,byTk:byTk};
+}
+function rTax(){
+  var ts=taxSummary();
+  E('taxChips').innerHTML=
+     '<div class="chip"><div class="lb">'+t('realized_ytd')+'</div><div class="vl '+pc(ts.net)+'" style="font-size:18px">'+fmt(ts.net)+'</div></div>'
+    +'<div class="chip"><div class="lb">'+t('est_tax')+'</div><div class="vl" style="font-size:18px">'+fmt(ts.tax)+'</div></div>'
+    +'<div class="chip"><div class="lb">'+t('realized_all')+'</div><div class="vl '+pc(ts.allNet)+'" style="font-size:18px">'+fmt(ts.allNet)+'</div></div>'
+    +'<div class="chip"><div class="lb">'+t('tx_log')+'</div><div class="vl" style="font-size:18px">'+S.tx.length+'</div></div>';
+  var keys=Object.keys(ts.byTk).sort(function(a,b){return ts.byTk[b]-ts.byTk[a];});
+  E('taxByTicker').innerHTML=keys.length?keys.map(function(k){return '<div class="mr"><span class="tk">'+k+'</span><span class="mn '+pc(ts.byTk[k])+'">'+fmt(ts.byTk[k])+'</span></div>';}).join(''):'<div class="empty" style="padding:10px">'+t('no_realized')+'</div>';
+  if(!S.tx.length){E('txList').innerHTML='<div class="empty" style="padding:10px">'+t('no_tx')+'</div>';return;}
+  var sorted=S.tx.slice().sort(function(a,b){return (a.date||'')<(b.date||'')?1:-1;});
+  E('txList').innerHTML=sorted.map(function(x){var ac=x.action==='buy'?'ja-b':'ja-s';
+    return '<div class="mr"><div style="display:flex;align-items:center;gap:9px"><span class="ja '+ac+'">'+t('act_'+x.action).toUpperCase()+'</span><span class="tk">'+x.ticker+'</span> <span style="color:var(--t3);font-size:12px">'+(x.date||'')+'</span></div><div><span class="mn" style="font-size:12px;color:var(--t2)">'+(+x.shares)+' × '+fPr(+x.price,x.currency)+'</span> <button class="btn bg bs bi" onclick="dlTx(\''+x.id+'\')" aria-label="delete" style="width:30px;height:30px;min-height:30px">'+ic('trash',true)+'</button></div></div>';}).join('');
+}
+function addTx(){
+  ['t_tk','t_sh','t_pr'].forEach(function(id){E(id).value='';});
+  E('t_ac').value='sell';E('t_cu').value='USD';E('t_dt').value=new Date().toISOString().slice(0,10);opM('txMod');
+}
+function savTx(){
+  var tk=E('t_tk').value.toUpperCase().trim();if(!tk)return alert(t('enter_ticker'));
+  var cu=E('t_cu').value;
+  S.tx.push({id:Date.now().toString(),ts:new Date().toISOString(),date:E('t_dt').value||new Date().toISOString().slice(0,10),
+    action:E('t_ac').value,ticker:tk,currency:cu,shares:parseFloat(E('t_sh').value)||0,
+    price:parseFloat(E('t_pr').value)||0,fx:fxFor(cu)});
+  sav();clM('txMod');rTax();
+}
+function dlTx(id){if(!confirm(t('confirm_del')))return;S.tx=S.tx.filter(function(x){return x.id!==id;});sav();rTax();}
+
 /* ============================ 12. INIT ============================ */
-PAGES={dashboard:rD,model:rM,holdings:rH,intel:rIntel,journal:rJ,perplexity:rPerp,settings:rSe,risk:rRisk};
+PAGES={dashboard:rD,model:rM,holdings:rH,intel:rIntel,tax:rTax,journal:rJ,perplexity:rPerp,settings:rSe,risk:rRisk};
 buildNav();
 applyI18n();
 E('histBox').addEventListener('mousemove',histMove);
