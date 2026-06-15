@@ -581,6 +581,11 @@ button:focus-visible,.nb:focus-visible{outline:2px solid rgba(255,255,255,.55);o
           <input type="number" id="s_arsec" dir="ltr" min="15" step="5" style="width:80px">
           <span style="font-size:12px;color:var(--t3)" data-i18n="seconds">seconds</span>
         </div>
+        <div class="fi" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <input type="checkbox" id="s_ls" style="width:auto;min-height:0">
+          <label class="fl" for="s_ls" style="margin:0" data-i18n="live_stream">Live stream (real-time ticks)</label>
+          <span style="font-size:11.5px;color:var(--t3)" data-i18n="live_stream_help">Streams US prices tick-by-tick via Finnhub while the tab is open. Needs a Finnhub key.</span>
+        </div>
         <div class="fi"><label class="fl" data-i18n="av_key">Alpha Vantage API Key (optional US-only fallback)</label><input type="text" id="s_ap" dir="ltr"></div>
         <hr>
         <div class="fg">
@@ -706,7 +711,7 @@ var DEF=[
 {id:'22',ticker:'PRTK',name:'פריוריטק',market:'TASE',currency:'ILS',shares:40,avgCost:166.0505,totalCostILS:6642.02,price:298.10,role:'satellite',assetClass:'equity'},
 {id:'23',ticker:'RMLI',name:'רמי לוי',market:'TASE',currency:'ILS',shares:6,avgCost:216.475,totalCostILS:1298.85,price:402.60,role:'satellite',assetClass:'equity'}
 ];
-var DSETT={apiKey:'',sheetUrl:'',finnhubKey:'',autoRefresh:true,autoRefreshSec:60,
+var DSETT={apiKey:'',sheetUrl:'',finnhubKey:'',autoRefresh:true,autoRefreshSec:60,liveStream:true,
   usdIls:3.60,eurIls:3.90,cash:948.63,lastUpdate:null,lang:'he',
   targetStocks:85,targetBonds:5,targetCash:10,targetIL:40,targetGlobal:60,
   maxSingle:10,maxUS:70,minCore:30,maxCrypto:10};
@@ -775,7 +780,8 @@ var I18N={
     finnhub_key:'Finnhub API Key (live US stocks + crypto ETFs)',
     finnhub_help:'Free real-time US prices. Get a key at finnhub.io (free, ~10s signup) and paste it here. US holdings update from Finnhub; TASE & Europe keep using the sheet.',
     auto_refresh:'Auto-refresh while open',auto_refresh_help:'Re-fetch prices automatically every',seconds:'seconds',
-    live_on:'Live',auto_off:'Off',
+    live_on:'Live',auto_off:'Off',live_stream:'Live stream (real-time ticks)',
+    live_stream_help:'Streams US prices tick-by-tick via Finnhub while the tab is open. Needs a Finnhub key.',streaming:'Streaming',
     sync_title:'Sync to another device',
     sync_intro:'Move your full setup (API key, holdings, settings) to your phone — one time. On this device press Copy, send the code to your phone (WhatsApp/email), and paste it there. Or scan the QR with your phone camera.',
     copy_code:'Copy sync code',copied_code:'Code copied',paste_code:'Paste a sync code from your other device',
@@ -888,7 +894,8 @@ var I18N={
     finnhub_key:'מפתח Finnhub (מניות US + קריפטו-ETF בזמן-אמת)',
     finnhub_help:'מחירי US בזמן-אמת בחינם. צור מפתח ב-finnhub.io (חינם, ~10 שניות) והדבק כאן. אחזקות US יתעדכנו מ-Finnhub; TASE ואירופה ימשיכו דרך הגיליון.',
     auto_refresh:'רענון אוטומטי כשהאתר פתוח',auto_refresh_help:'משוך מחירים אוטומטית כל',seconds:'שניות',
-    live_on:'לייב',auto_off:'כבוי',
+    live_on:'לייב',auto_off:'כבוי',live_stream:'זרימה חיה (טיק-אחר-טיק)',
+    live_stream_help:'משדר מחירי US בזמן-אמת דרך Finnhub כשהטאב פתוח. דורש מפתח Finnhub.',streaming:'משדר',
     sync_title:'סנכרון למכשיר אחר',
     sync_intro:'העבר את כל ההגדרות (מפתח API, אחזקות, הגדרות) לטלפון — פעם אחת. במכשיר הזה לחץ העתק, שלח את הקוד לטלפון (וואטסאפ/מייל) והדבק שם. או סרוק את ה-QR עם מצלמת הטלפון.',
     copy_code:'העתק קוד סנכרון',copied_code:'הקוד הועתק',paste_code:'הדבק קוד סנכרון מהמכשיר השני',
@@ -1241,7 +1248,9 @@ function renderHeader(){
   E('tbValue').textContent=fmt(p.tv);
   var plEl=E('tbPL');plEl.textContent=fmt(p.tpl)+'  '+fP(p.tpp);plEl.className='vl '+pc(p.tpl);plEl.style.fontSize='16px';
   var upd=S.s.lastUpdate?new Date(S.s.lastUpdate).toLocaleString(loc()):t('never');
-  var live=(S.s.autoRefresh!==false&&hasLiveSource())?'<span class="live-dot"></span><span class="live-lbl">'+t('live_on')+'</span> · ':'';
+  var live='';
+  if(streamLive)live='<span class="live-dot"></span><span class="live-lbl">'+t('streaming')+'</span> · ';
+  else if(S.s.autoRefresh!==false&&hasLiveSource())live='<span class="live-dot"></span><span class="live-lbl">'+t('live_on')+'</span> · ';
   E('tbMeta').innerHTML=t('positions')+': '+p.hs.length+' · '+t('cash_w')+': '+fmt(p.cash)+'<br>'+live+t('updated_at')+': '+upd;
 }
 
@@ -1542,6 +1551,7 @@ function rSe(){
   var s=S.s;
   E('s_sh').value=s.sheetUrl||'';E('s_ap').value=s.apiKey||'';
   E('s_fh').value=s.finnhubKey||'';E('s_ar').checked=s.autoRefresh!==false;E('s_arsec').value=s.autoRefreshSec||60;
+  E('s_ls').checked=s.liveStream!==false;
   E('s_usd').value=s.usdIls;E('s_eur').value=s.eurIls;E('s_csh').value=s.cash;
   E('s_tS').value=s.targetStocks;E('s_tB').value=s.targetBonds;E('s_tC').value=s.targetCash;
   E('s_tI').value=s.targetIL;E('s_tG').value=s.targetGlobal;E('s_mS').value=s.maxSingle;
@@ -1554,6 +1564,7 @@ function numOr(id,fb){var v=parseFloat(E(id).value);return isNaN(v)?fb:v;}
 function savS(){
   var s=S.s;s.sheetUrl=E('s_sh').value.trim();s.apiKey=E('s_ap').value.trim();
   s.finnhubKey=E('s_fh').value.trim();s.autoRefresh=E('s_ar').checked;
+  s.liveStream=E('s_ls').checked;
   s.autoRefreshSec=Math.max(15,numOr('s_arsec',60));
   var u=parseFloat(E('s_usd').value);if(u>0)s.usdIls=u;
   var e=parseFloat(E('s_eur').value);if(e>0)s.eurIls=e;
@@ -1562,7 +1573,7 @@ function savS(){
   s.targetCash=numOr('s_tC',s.targetCash);s.targetIL=numOr('s_tI',s.targetIL);
   s.targetGlobal=numOr('s_tG',s.targetGlobal);s.maxSingle=numOr('s_mS',s.maxSingle);
   s.maxUS=numOr('s_mU',s.maxUS);s.minCore=numOr('s_mC',s.minCore);
-  s.maxCrypto=numOr('s_mX',s.maxCrypto);sav();renderHeader();startAutoRefresh();alert(t('saved'));rD();
+  s.maxCrypto=numOr('s_mX',s.maxCrypto);sav();renderHeader();startAutoRefresh();startStream();alert(t('saved'));rD();
 }
 
 /* GOOGLEFINANCE formula block from current holdings + FX + benchmarks */
@@ -1903,6 +1914,59 @@ function maybeAutoRefresh(){
   startAutoRefresh();
 }
 
+/* ============================ REAL-TIME STREAM (Finnhub WebSocket, US) ============================ */
+var ws=null,wsReconnect=null,wsBuf={},wsRenderQ=false,streamLive=false;
+function streamSymbols(){return S.h.filter(function(h){return h.market==='US'&&!h.manualPrice;}).map(function(h){return h.ticker;});}
+function setStreaming(on){
+  if(streamLive===on)return;
+  streamLive=on;if(E('tbMeta'))renderHeader();
+}
+function startStream(){
+  stopStream();
+  if(!(S.s.liveStream&&S.s.finnhubKey)||document.hidden)return;
+  var syms=streamSymbols();if(!syms.length)return;
+  try{
+    ws=new WebSocket('wss://ws.finnhub.io?token='+encodeURIComponent(S.s.finnhubKey));
+    ws.onopen=function(){syms.forEach(function(s){try{ws.send(JSON.stringify({type:'subscribe',symbol:s}));}catch(e){}});setStreaming(true);};
+    ws.onmessage=function(ev){var m;try{m=JSON.parse(ev.data);}catch(e){return;}
+      if(m.type==='trade'&&m.data){for(var i=0;i<m.data.length;i++)if(m.data[i].p>0)wsBuf[m.data[i].s]=m.data[i].p;scheduleStreamRender();}};
+    ws.onclose=function(){setStreaming(false);scheduleReconnect();};
+    ws.onerror=function(){try{ws.close();}catch(e){}};
+  }catch(e){}
+}
+function stopStream(){
+  if(wsReconnect){clearTimeout(wsReconnect);wsReconnect=null;}
+  if(ws){try{ws.onclose=null;ws.close();}catch(e){}ws=null;}
+  setStreaming(false);
+}
+function scheduleReconnect(){
+  if(!(S.s.liveStream&&S.s.finnhubKey)||document.hidden||wsReconnect)return;
+  wsReconnect=setTimeout(function(){wsReconnect=null;startStream();},5000);
+}
+/* throttle UI to ~once/sec: apply buffered ticks, refresh only the live numbers (no chart redraw) */
+function scheduleStreamRender(){
+  if(wsRenderQ)return;wsRenderQ=true;
+  setTimeout(function(){
+    wsRenderQ=false;var changed=false;
+    for(var s in wsBuf){for(var i=0;i<S.h.length;i++)if(S.h[i].ticker===s&&S.h[i].price!==wsBuf[s]){S.h[i].price=wsBuf[s];changed=true;}}
+    wsBuf={};
+    if(changed)liveTickUpdate();
+  },1100);
+}
+function liveTickUpdate(){
+  renderHeader();
+  if(activePage==='dashboard'){
+    var p=cP();
+    E('heroVal').textContent=fmt(p.tv);
+    var hd=E('heroDelta');
+    if(p.hasDay){hd.textContent=t('today')+' '+fmt(p.dayPL)+' · '+fP(p.dayPct);hd.className='pill '+(p.dayPL>=0?'up':'down');}
+    else{hd.textContent=fmt(p.tpl)+' · '+fP(p.tpp);hd.className='pill '+(p.tpl>=0?'up':'down');}
+    rMovers(p);
+  }else if(activePage==='holdings'){rH();}
+}
+/* pause the socket when the tab is hidden, resume when visible */
+document.addEventListener('visibilitychange',function(){if(document.hidden)stopStream();else startStream();});
+
 /* ============================ LIVE INTEL (Finnhub, US holdings) ============================ */
 var FH='https://finnhub.io/api/v1/';
 function fhGet(path){return fetch(FH+path+'&token='+encodeURIComponent(S.s.finnhubKey)).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
@@ -2070,7 +2134,7 @@ function openHolding(id){
     +'<button class="btn bd" onclick="dlHfromDetail(\''+h.id+'\')">'+ic('trash',true)+'<span>'+t('del')+'</span></button></div>';
   E('hdBody').innerHTML=html;opM('hdMod');
 }
-function dlHfromDetail(id){if(!confirm(t('confirm_del')))return;S.h=S.h.filter(function(h){return h.id!==id;});sav();clM('hdMod');rH();rD();}
+function dlHfromDetail(id){if(!confirm(t('confirm_del')))return;S.h=S.h.filter(function(h){return h.id!==id;});sav();clM('hdMod');rH();rD();startStream();}
 
 /* ============================ 10. CRUD ============================ */
 function addH(){
@@ -2099,9 +2163,9 @@ function savH(){
   if(!d.ticker)return alert(t('enter_ticker'));
   if(eid){for(var i=0;i<S.h.length;i++)if(S.h[i].id===eid){S.h[i]=Object.assign(S.h[i],d);break;}}
   else{d.id=Date.now().toString();S.h.push(d);}
-  sav();clM('hMod');rH();rD();
+  sav();clM('hMod');rH();rD();startStream();
 }
-function dlH(id){if(!confirm(t('confirm_del')))return;S.h=S.h.filter(function(h){return h.id!==id;});sav();rH();rD();}
+function dlH(id){if(!confirm(t('confirm_del')))return;S.h=S.h.filter(function(h){return h.id!==id;});sav();rH();rD();startStream();}
 
 function addJ(){
   ['j_tk','j_th','j_ri','j_ex'].forEach(function(id){E(id).value='';});
@@ -2232,6 +2296,7 @@ E('histBox').addEventListener('mouseleave',histLeave);
 rD();
 checkSyncHash();
 maybeAutoRefresh();
+startStream();
 </script>
 </body>
 </html>
